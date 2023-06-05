@@ -1,0 +1,10 @@
+.{
+    .name = "gui",
+    .version = "0.0.1",
+    .dependencies = .{
+        .freetype = .{
+            .url = "https://github.com/david-vanderson/freetype/archive/09ee107f41722d14a55f1e93699d13502cbeee7d.tar.gz",
+            .hash = "12206093916f783d7b915d8aeb73c83ff26d70f4cd83345e156148353029496522cd",
+        },
+    },
+}
