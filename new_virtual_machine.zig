@@ -5,14 +5,6 @@ const main = @import("main.zig");
 
 pub var show = false;
 
-var name = std.mem.zeroes([128]u8);
-var ram = std.mem.zeroes([32]u8);
-var cores = std.mem.zeroes([16]u8);
-var threads = std.mem.zeroes([16]u8);
-var disk = std.mem.zeroes([8]u8);
-var has_boot_image = false;
-var boot_image = std.mem.zeroes([1024]u8);
-
 const VirtualMachine = struct {
     name: []const u8,
     ram: u64,
@@ -22,6 +14,14 @@ const VirtualMachine = struct {
     has_boot_image: bool,
     boot_image: []const u8,
 };
+
+var name = std.mem.zeroes([128]u8);
+var ram = std.mem.zeroes([32]u8);
+var cores = std.mem.zeroes([16]u8);
+var threads = std.mem.zeroes([16]u8);
+var disk = std.mem.zeroes([8]u8);
+var has_boot_image = false;
+var boot_image = std.mem.zeroes([1024]u8);
 
 pub fn gui_frame() !void {
     if (!show) {
@@ -59,13 +59,28 @@ pub fn gui_frame() !void {
     }
 
     if (try gui.button(@src(), "Create", .{ .expand = .both })) {
-        var file_name = try std.fmt.allocPrint(main.gpa, "{s}.ini", .{name});
-        defer main.gpa.free(file_name);
+        var file_name = std.ArrayList(u8).init(main.gpa);
+        defer file_name.deinit();
 
-        var file = try main.virtual_machines_directory.createFile(file_name, .{});
+        for (0..128) |i| {
+            var character = name[i];
+
+            if (character == 0) {
+                break;
+            }
+
+            try file_name.append(character);
+        }
+
+        try file_name.append('.');
+        try file_name.append('i');
+        try file_name.append('n');
+        try file_name.append('i');
+
+        var file = try main.virtual_machines_directory.createFile(file_name.items, .{});
         defer file.close();
 
-        //try ini.writeStruct(vm, file.writer());
+        // try ini.writeStruct(vm, file.writer());
 
         show = false;
     }
