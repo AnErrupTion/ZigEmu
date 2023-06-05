@@ -1,13 +1,27 @@
 const std = @import("std");
 const gui = @import("gui");
+const ini = @import("ini.zig");
+const main = @import("main.zig");
 
 pub var show = false;
 
-var name_buffer = std.mem.zeroes([128]u8);
-var ram_buffer = std.mem.zeroes([32]u8);
-var cores_buffer = std.mem.zeroes([16]u8);
-var threads_buffer = std.mem.zeroes([16]u8);
-var disk_buffer = std.mem.zeroes([8]u8);
+var name = std.mem.zeroes([128]u8);
+var ram = std.mem.zeroes([32]u8);
+var cores = std.mem.zeroes([16]u8);
+var threads = std.mem.zeroes([16]u8);
+var disk = std.mem.zeroes([8]u8);
+var has_boot_image = false;
+var boot_image = std.mem.zeroes([1024]u8);
+
+const VirtualMachine = struct {
+    name: []const u8,
+    ram: u64,
+    cores: u64,
+    threads: u64,
+    disk: u64,
+    has_boot_image: bool,
+    boot_image: []const u8,
+};
 
 pub fn gui_frame() !void {
     if (!show) {
@@ -22,30 +36,37 @@ pub fn gui_frame() !void {
     var scroll = try gui.scrollArea(@src(), .{}, .{ .expand = .both, .color_style = .window });
     defer scroll.deinit();
 
-    var label = try gui.label(@src(), "{s}:", .{"Name"}, .{});
-    _ = label;
-    var name = try gui.textEntry(@src(), .{ .text = &name_buffer }, .{ .expand = .both });
-    _ = name;
+    try gui.label(@src(), "{s}:", .{"Name"}, .{});
+    try gui.textEntry(@src(), .{ .text = &name }, .{ .expand = .both });
 
-    var label2 = try gui.label(@src(), "{s}:", .{"RAM (in MiB)"}, .{});
-    _ = label2;
-    var ram = try gui.textEntry(@src(), .{ .text = &ram_buffer }, .{ .expand = .both });
-    _ = ram;
+    try gui.label(@src(), "{s}:", .{"RAM (in MiB)"}, .{});
+    try gui.textEntry(@src(), .{ .text = &ram }, .{ .expand = .both });
 
-    var label3 = try gui.label(@src(), "{s}:", .{"CPU cores"}, .{});
-    _ = label3;
-    var cores = try gui.textEntry(@src(), .{ .text = &cores_buffer }, .{ .expand = .both });
-    _ = cores;
+    try gui.label(@src(), "{s}:", .{"CPU cores"}, .{});
+    try gui.textEntry(@src(), .{ .text = &cores }, .{ .expand = .both });
 
-    var label4 = try gui.label(@src(), "{s}:", .{"CPU threads"}, .{});
-    _ = label4;
-    var threads = try gui.textEntry(@src(), .{ .text = &threads_buffer }, .{ .expand = .both });
-    _ = threads;
+    try gui.label(@src(), "{s}:", .{"CPU threads"}, .{});
+    try gui.textEntry(@src(), .{ .text = &threads }, .{ .expand = .both });
 
-    var label5 = try gui.label(@src(), "{s}:", .{"Disk size (in GiB)"}, .{});
-    _ = label5;
-    var disk = try gui.textEntry(@src(), .{ .text = &disk_buffer }, .{ .expand = .both });
-    _ = disk;
+    try gui.label(@src(), "{s}:", .{"Disk size (in GiB)"}, .{});
+    try gui.textEntry(@src(), .{ .text = &disk }, .{ .expand = .both });
 
-    if (try gui.button(@src(), "Create", .{ .expand = .both })) {}
+    try gui.checkbox(@src(), &has_boot_image, "Add a boot image", .{});
+
+    if (has_boot_image) {
+        try gui.label(@src(), "{s}:", .{"Boot image"}, .{});
+        try gui.textEntry(@src(), .{ .text = &boot_image }, .{ .expand = .both });
+    }
+
+    if (try gui.button(@src(), "Create", .{ .expand = .both })) {
+        var file_name = try std.fmt.allocPrint(main.gpa, "{s}.ini", .{name});
+        defer main.gpa.free(file_name);
+
+        var file = try main.virtual_machines_directory.createFile(file_name, .{});
+        defer file.close();
+
+        //try ini.writeStruct(vm, file.writer());
+
+        show = false;
+    }
 }
