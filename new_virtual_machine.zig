@@ -5,6 +5,7 @@ const main = @import("main.zig");
 
 pub var show = false;
 
+const Error = error{ CannotSanitizeOutput, OutOfMemory };
 const VirtualMachine = struct {
     name: []const u8,
     ram: u64,
@@ -59,29 +60,47 @@ pub fn gui_frame() !void {
     }
 
     if (try gui.button(@src(), "Create", .{ .expand = .both })) {
-        var file_name = std.ArrayList(u8).init(main.gpa);
-        defer file_name.deinit();
+        var actual_name = sanitize_output_text(&name) catch return;
+        defer actual_name.deinit();
 
-        for (0..128) |i| {
-            var character = name[i];
+        // var vm = VirtualMachine{
+        //     .name = actual_name.items,
+        //     .ram = ram,
+        //     .cores = cores,
+        //     .threads = threads,
+        //     .disk = disk,
+        //     .has_boot_image = has_boot_image,
+        //     .boot_image = boot_image,
+        // };
 
-            if (character == 0) {
-                break;
-            }
+        try actual_name.append('.');
+        try actual_name.append('i');
+        try actual_name.append('n');
+        try actual_name.append('i');
 
-            try file_name.append(character);
-        }
-
-        try file_name.append('.');
-        try file_name.append('i');
-        try file_name.append('n');
-        try file_name.append('i');
-
-        var file = try main.virtual_machines_directory.createFile(file_name.items, .{});
+        var file = try main.virtual_machines_directory.createFile(actual_name.items, .{});
         defer file.close();
 
         // try ini.writeStruct(vm, file.writer());
 
         show = false;
     }
+}
+
+fn sanitize_output_text(buffer: []u8) Error!std.ArrayList(u8) {
+    if (buffer[0] == 0) {
+        return Error.CannotSanitizeOutput;
+    }
+
+    var sanitized_buffer = std.ArrayList(u8).init(main.gpa);
+
+    for (buffer) |byte| {
+        if (byte == 0) {
+            break;
+        }
+
+        try sanitized_buffer.append(byte);
+    }
+
+    return sanitized_buffer;
 }
