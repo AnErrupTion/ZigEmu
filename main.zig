@@ -35,6 +35,10 @@ pub fn main() !void {
     var iterator = files.iterate();
 
     while (try iterator.next()) |file| {
+        if (!std.mem.endsWith(u8, file.name, ".ini")) {
+            continue;
+        }
+
         var config = try virtual_machines_directory.readFileAlloc(gpa, file.name, 16 * 1024 * 1024); // Free?
         var vm = try ini.readToStruct(structs.VirtualMachine, config);
 
@@ -123,6 +127,8 @@ fn gui_frame() !void {
             if (try gui.button(@src(), "Run", .{ .expand = .both })) {
                 var qemu_arguments = try qemu.get_arguments(vm);
                 defer qemu_arguments.deinit();
+
+                std.debug.print("{s}\n", .{qemu_arguments.items});
 
                 _ = std.ChildProcess.exec(.{ .argv = qemu_arguments.items, .allocator = gpa }) catch {
                     try gui.dialog(@src(), .{ .title = "Error", .message = "Unable to create a child process for QEMU." });

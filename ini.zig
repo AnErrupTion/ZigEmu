@@ -149,6 +149,7 @@ pub fn writeStruct(struct_value: anytype, writer: anytype) !void {
         try writer.print("[{s}]\n", .{field.name});
         const pairs = @field(struct_value, field.name);
         inline for (std.meta.fields(@TypeOf(pairs))) |pair| {
+            // TODO: Enum value without enum name (e.g. structs.Chipset.q35)
             const key_value = @field(pairs, pair.name);
             const format = switch (@TypeOf(key_value)) {
                 []const u8 => "{s}",

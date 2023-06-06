@@ -56,7 +56,6 @@ pub const UsbType = enum {
 pub const Drive = struct {
     is_cdrom: bool,
     bus: DriveBus,
-    size: u64,
     path: []const u8,
 };
 
@@ -67,6 +66,7 @@ pub const VirtualMachine = struct {
         has_acceleration: bool,
         chipset: Chipset,
         usb_type: UsbType,
+        has_ahci: bool,
     },
     memory: struct {
         ram: u64,

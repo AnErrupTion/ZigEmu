@@ -82,11 +82,10 @@ pub fn gui_frame() !void {
         try permanent_buffers.lists.append(actual_name);
         try permanent_buffers.lists.append(actual_boot_image);
 
-        // Dummy drive by default (0 bytes size + empty path)
+        // Dummy drive by default (empty path)
         var boot_drive: structs.Drive = .{
             .is_cdrom = false,
             .bus = structs.DriveBus.ide,
-            .size = 0,
             .path = "",
         };
 
@@ -94,7 +93,6 @@ pub fn gui_frame() !void {
             boot_drive = .{
                 .is_cdrom = true,
                 .bus = structs.DriveBus.sata,
-                .size = 0,
                 .path = actual_boot_image.items,
             };
         }
@@ -110,6 +108,7 @@ pub fn gui_frame() !void {
                 .chipset = structs.Chipset.q35,
                 .has_acceleration = true,
                 .usb_type = structs.UsbType.ehci,
+                .has_ahci = true,
             },
             .memory = .{ .ram = actual_ram },
             .processor = .{
@@ -134,26 +133,22 @@ pub fn gui_frame() !void {
             .drive0 = .{
                 .is_cdrom = false,
                 .bus = structs.DriveBus.sata,
-                .size = actual_disk,
                 .path = disk_file,
             },
             .drive1 = boot_drive,
             .drive2 = .{
                 .is_cdrom = false,
                 .bus = structs.DriveBus.ide,
-                .size = 0,
                 .path = "",
             },
             .drive3 = .{
                 .is_cdrom = false,
                 .bus = structs.DriveBus.ide,
-                .size = 0,
                 .path = "",
             },
             .drive4 = .{
                 .is_cdrom = false,
                 .bus = structs.DriveBus.ide,
-                .size = 0,
                 .path = "",
             },
         };
@@ -169,6 +164,27 @@ pub fn gui_frame() !void {
         defer file.close();
 
         try ini.writeStruct(vm, file.writer());
+
+        var disk_file_path = try std.fmt.allocPrint(main.gpa, "VMs/{s}", .{disk_file});
+        defer main.gpa.free(disk_file_path);
+
+        var disk_size = try std.fmt.allocPrint(main.gpa, "{d}G", .{actual_disk});
+        defer main.gpa.free(disk_size);
+
+        const qemu_img_arguments = [_][]const u8{
+            "qemu-img",
+            "create",
+            "-q",
+            "-f",
+            "raw",
+            disk_file_path,
+            disk_size,
+        };
+
+        _ = std.ChildProcess.exec(.{ .argv = &qemu_img_arguments, .allocator = main.gpa }) catch {
+            try gui.dialog(@src(), .{ .title = "Error", .message = "Unable to create a child process for the QEMU image creation." });
+            return;
+        };
 
         show = false;
     }

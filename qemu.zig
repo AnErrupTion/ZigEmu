@@ -60,6 +60,11 @@ pub fn get_arguments(vm: structs.VirtualMachine) !std.ArrayList([]const u8) {
         }
     }
 
+    if (vm.basic.has_ahci) {
+        try list.append("-device");
+        try list.append("ahci,id=ahci");
+    }
+
     if (vm.graphics.gpu != structs.Gpu.none) {
         try list.append("-device");
 
@@ -125,7 +130,7 @@ pub fn get_arguments(vm: structs.VirtualMachine) !std.ArrayList([]const u8) {
         }
     }
 
-    if (vm.drive0.size != 0 and !std.mem.eql(u8, vm.drive0.path, "")) {
+    if (!std.mem.eql(u8, vm.drive0.path, "")) {
         var drive = try std.fmt.allocPrint(main.gpa, "if=none,file=\"{s}\",id=drive0", .{vm.drive0.path});
 
         try permanent_buffers.arrays.append(drive);
@@ -158,6 +163,42 @@ pub fn get_arguments(vm: structs.VirtualMachine) !std.ArrayList([]const u8) {
 
             try list.append("-device");
             try list.append("virtio-blk-pci,drive=drive0");
+        }
+    }
+
+    if (!std.mem.eql(u8, vm.drive1.path, "")) {
+        var drive = try std.fmt.allocPrint(main.gpa, "if=none,file=\"{s}\",id=drive1", .{vm.drive1.path});
+
+        try permanent_buffers.arrays.append(drive);
+
+        try list.append("-drive");
+        try list.append(drive);
+
+        if (vm.drive1.bus == structs.DriveBus.ide) {
+            try list.append("-device");
+            if (vm.drive1.is_cdrom) {
+                try list.append("ide-cd,drive=drive1");
+            } else {
+                try list.append("ide-hd,drive=drive1");
+            }
+        } else if (vm.drive1.bus == structs.DriveBus.sata) {
+            try list.append("-device");
+            if (vm.drive1.is_cdrom) {
+                try list.append("ide-cd,drive=drive1,bus=ahci.0");
+            } else {
+                try list.append("ide-hd,drive=drive1,bus=ahci.0");
+            }
+        } else if (vm.drive1.bus == structs.DriveBus.usb) {
+            if (vm.basic.usb_type == structs.UsbType.none) unreachable;
+            if (vm.drive1.is_cdrom) unreachable;
+
+            try list.append("-device");
+            try list.append("usb-storage,drive=drive1,bus=usb.0");
+        } else if (vm.drive1.bus == structs.DriveBus.virtio) {
+            if (vm.drive1.is_cdrom) unreachable;
+
+            try list.append("-device");
+            try list.append("virtio-blk-pci,drive=drive1");
         }
     }
 
