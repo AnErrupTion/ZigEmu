@@ -1,5 +1,6 @@
 const std = @import("std");
 const gui = @import("gui");
+const structs = @import("structs.zig");
 const ini = @import("ini.zig");
 const main = @import("main.zig");
 const permanent_buffers = @import("permanent_buffers.zig");
@@ -81,17 +82,79 @@ pub fn gui_frame() !void {
         try permanent_buffers.lists.append(actual_name);
         try permanent_buffers.lists.append(actual_boot_image);
 
-        const vm = main.VirtualMachine{
-            .machine = .{
+        // Dummy drive by default (0 bytes size + empty path)
+        var boot_drive: structs.Drive = .{
+            .is_cdrom = false,
+            .bus = structs.DriveBus.ide,
+            .size = 0,
+            .path = "",
+        };
+
+        if (has_boot_image) {
+            boot_drive = .{
+                .is_cdrom = true,
+                .bus = structs.DriveBus.sata,
+                .size = 0,
+                .path = actual_boot_image.items,
+            };
+        }
+
+        var disk_file = try std.fmt.allocPrint(main.gpa, "{s}.img", .{actual_name.items});
+
+        try permanent_buffers.arrays.append(disk_file);
+
+        const vm = structs.VirtualMachine{
+            .basic = .{
                 .name = actual_name.items,
-                .ram = actual_ram,
-                .cpu = "host",
+                .architecture = structs.Architecture.amd64,
+                .chipset = structs.Chipset.q35,
+                .has_acceleration = true,
+                .usb_type = structs.UsbType.ehci,
+            },
+            .memory = .{ .ram = actual_ram },
+            .processor = .{
+                .cpu = structs.Cpu.host,
                 .features = "",
                 .cores = actual_cores,
                 .threads = actual_threads,
-                .disk = actual_disk,
-                .has_boot_image = has_boot_image,
-                .boot_image = actual_boot_image.items,
+            },
+            .network = .{},
+            .graphics = .{
+                .display = structs.Display.sdl,
+                .gpu = structs.Gpu.vga,
+                .has_vga_emulation = true,
+                .has_graphics_acceleration = false,
+            },
+            .audio = .{},
+            .peripherals = .{
+                .keyboard = structs.Keyboard.usb,
+                .mouse = structs.Mouse.usb,
+                .has_mouse_absolute_pointing = true,
+            },
+            .drive0 = .{
+                .is_cdrom = false,
+                .bus = structs.DriveBus.sata,
+                .size = actual_disk,
+                .path = disk_file,
+            },
+            .drive1 = boot_drive,
+            .drive2 = .{
+                .is_cdrom = false,
+                .bus = structs.DriveBus.ide,
+                .size = 0,
+                .path = "",
+            },
+            .drive3 = .{
+                .is_cdrom = false,
+                .bus = structs.DriveBus.ide,
+                .size = 0,
+                .path = "",
+            },
+            .drive4 = .{
+                .is_cdrom = false,
+                .bus = structs.DriveBus.ide,
+                .size = 0,
+                .path = "",
             },
         };
 

@@ -1,10 +1,11 @@
 const std = @import("std");
 const gui = @import("gui");
+const structs = @import("structs.zig");
 const ini = @import("ini.zig");
 const main = @import("main.zig");
 const utils = @import("utils.zig");
 
-pub var vm: main.VirtualMachine = undefined;
+pub var vm: structs.VirtualMachine = undefined;
 pub var show = false;
 
 var option_index: u64 = 0;
@@ -14,10 +15,10 @@ var cores = std.mem.zeroes([16]u8);
 var threads = std.mem.zeroes([16]u8);
 
 pub fn init() !void {
-    var cores_format = try std.fmt.allocPrint(main.gpa, "{d}", .{vm.machine.cores});
+    var cores_format = try std.fmt.allocPrint(main.gpa, "{d}", .{vm.processor.cores});
     defer main.gpa.free(cores_format);
 
-    var threads_format = try std.fmt.allocPrint(main.gpa, "{d}", .{vm.machine.threads});
+    var threads_format = try std.fmt.allocPrint(main.gpa, "{d}", .{vm.processor.threads});
     defer main.gpa.free(threads_format);
 
     @memset(&cpu, 0);
@@ -25,8 +26,8 @@ pub fn init() !void {
     @memset(&cores, 0);
     @memset(&threads, 0);
 
-    set_buffer(&cpu, vm.machine.cpu);
-    set_buffer(&features, vm.machine.features);
+    set_buffer(&cpu, utils.cpu_to_string(vm.processor.cpu));
+    set_buffer(&features, vm.processor.features);
     set_buffer(&cores, cores_format);
     set_buffer(&threads, threads_format);
 }
@@ -39,7 +40,7 @@ pub fn gui_frame() !void {
     var window = try gui.floatingWindow(@src(), .{ .open_flag = &show }, .{ .min_size_content = .{ .w = 400, .h = 400 } });
     defer window.deinit();
 
-    try gui.windowHeader("Processor", vm.machine.name, &show);
+    try gui.windowHeader("Processor", vm.basic.name, &show);
 
     var scroll = try gui.scrollArea(@src(), .{}, .{ .expand = .both });
     defer scroll.deinit();
@@ -52,24 +53,32 @@ pub fn gui_frame() !void {
     try add_option("Threads", &threads);
 
     if (try gui.button(@src(), "OK", .{ .expand = .both, .color_style = .accent })) {
-        vm.machine.cpu = (utils.sanitize_output_text(&cpu) catch {
+        var sanitized_cpu = (utils.sanitize_output_text(&cpu) catch {
             try gui.dialog(@src(), .{ .title = "Error", .message = "Please enter a valid CPU name!" });
             return;
         }).items;
-        vm.machine.features = (utils.sanitize_output_text(&features) catch {
-            try gui.dialog(@src(), .{ .title = "Error", .message = "Please enter a valid features subset!" });
+
+        vm.processor.cpu = utils.string_to_cpu(sanitized_cpu) catch {
+            try gui.dialog(@src(), .{ .title = "Error", .message = "Please enter a valid CPU name!" });
+            return;
+        };
+
+        vm.processor.features = (utils.sanitize_output_text(&features) catch {
+            try gui.dialog(@src(), .{ .title = "Error", .message = "Please enter a valid feature subset!" });
             return;
         }).items;
-        vm.machine.cores = utils.sanitize_output_number(&cores) catch {
+
+        vm.processor.cores = utils.sanitize_output_number(&cores) catch {
             try gui.dialog(@src(), .{ .title = "Error", .message = "Please enter a valid amount of cores!" });
             return;
         };
-        vm.machine.threads = utils.sanitize_output_number(&threads) catch {
+
+        vm.processor.threads = utils.sanitize_output_number(&threads) catch {
             try gui.dialog(@src(), .{ .title = "Error", .message = "Please enter a valid amount of threads!" });
             return;
         };
 
-        var file_name = try std.fmt.allocPrint(main.gpa, "{s}.ini", .{vm.machine.name});
+        var file_name = try std.fmt.allocPrint(main.gpa, "{s}.ini", .{vm.basic.name});
         defer main.gpa.free(file_name);
 
         var file = try main.virtual_machines_directory.createFile(file_name, .{});

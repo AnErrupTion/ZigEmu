@@ -1,33 +1,21 @@
 const std = @import("std");
 const gui = @import("gui");
 const Backend = @import("SDLBackend");
+const structs = @import("structs.zig");
 const ini = @import("ini.zig");
 const new_virtual_machine = @import("new_virtual_machine.zig");
 const processor = @import("processor.zig");
 const permanent_buffers = @import("permanent_buffers.zig");
 const qemu = @import("qemu.zig");
 
-var vm_options: VirtualMachine = undefined;
+var vm_options: structs.VirtualMachine = undefined;
 var show_vm_options = false;
 var gpa_instance = std.heap.GeneralPurposeAllocator(.{}){};
 
 pub const gpa = gpa_instance.allocator();
-pub const VirtualMachine = struct {
-    machine: struct {
-        name: []const u8,
-        ram: u64,
-        cpu: []const u8,
-        features: []const u8,
-        cores: u64,
-        threads: u64,
-        disk: u64,
-        has_boot_image: bool,
-        boot_image: []const u8,
-    },
-};
 
 pub var virtual_machines_directory: std.fs.Dir = undefined;
-pub var virtual_machines: std.ArrayList(VirtualMachine) = undefined;
+pub var virtual_machines: std.ArrayList(structs.VirtualMachine) = undefined;
 
 pub fn main() !void {
     defer _ = gpa_instance.deinit();
@@ -38,7 +26,7 @@ pub fn main() !void {
     virtual_machines_directory = try std.fs.cwd().openDir("VMs", .{});
     defer virtual_machines_directory.close();
 
-    virtual_machines = std.ArrayList(VirtualMachine).init(gpa);
+    virtual_machines = std.ArrayList(structs.VirtualMachine).init(gpa);
     defer virtual_machines.deinit();
 
     var files = try std.fs.cwd().openIterableDir("VMs", .{});
@@ -48,7 +36,7 @@ pub fn main() !void {
 
     while (try iterator.next()) |file| {
         var config = try virtual_machines_directory.readFileAlloc(gpa, file.name, 16 * 1024 * 1024); // Free?
-        var vm = try ini.readToStruct(VirtualMachine, config);
+        var vm = try ini.readToStruct(structs.VirtualMachine, config);
 
         try permanent_buffers.arrays.append(config);
         try virtual_machines.append(vm);
@@ -112,12 +100,13 @@ fn gui_frame() !void {
     var index: u64 = 0;
 
     for (virtual_machines.items) |vm| {
-        if (try gui.button(@src(), vm.machine.name, .{ .expand = .both, .color_style = .accent, .id_extra = index })) {
+        if (try gui.button(@src(), vm.basic.name, .{ .expand = .both, .color_style = .accent, .id_extra = index })) {
             vm_options = vm;
             show_vm_options = !show_vm_options;
         }
 
         if (show_vm_options and std.meta.eql(vm_options, vm)) {
+            if (try gui.button(@src(), "Basic", .{ .expand = .both })) {}
             if (try gui.button(@src(), "Processor", .{ .expand = .both })) {
                 processor.vm = vm;
                 processor.show = true;
@@ -125,6 +114,11 @@ fn gui_frame() !void {
                 try processor.init();
             }
             if (try gui.button(@src(), "Memory", .{ .expand = .both })) {}
+            if (try gui.button(@src(), "Network", .{ .expand = .both })) {}
+            if (try gui.button(@src(), "Drives", .{ .expand = .both })) {}
+            if (try gui.button(@src(), "Graphics", .{ .expand = .both })) {}
+            if (try gui.button(@src(), "Audio", .{ .expand = .both })) {}
+            if (try gui.button(@src(), "Peripherals", .{ .expand = .both })) {}
             if (try gui.button(@src(), "Command line", .{ .expand = .both })) {}
             if (try gui.button(@src(), "Run", .{ .expand = .both })) {
                 var qemu_arguments = try qemu.get_arguments(vm);

@@ -140,6 +140,7 @@ pub fn convert(comptime T: type, val: []const u8) !T {
         .Int, .ComptimeInt => try std.fmt.parseInt(T, val, 0),
         .Float, .ComptimeFloat => try std.fmt.parseFloat(T, val),
         .Bool => truthyAndFalsy.get(val).?,
+        .Enum => std.meta.stringToEnum(T, val).?,
         else => @as(T, val),
     };
 }
