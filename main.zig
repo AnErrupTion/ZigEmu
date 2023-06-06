@@ -17,6 +17,7 @@ pub const VirtualMachine = struct {
         name: []const u8,
         ram: u64,
         cpu: []const u8,
+        features: []const u8,
         cores: u64,
         threads: u64,
         disk: u64,
@@ -124,11 +125,12 @@ fn gui_frame() !void {
                 try processor.init();
             }
             if (try gui.button(@src(), "Memory", .{ .expand = .both })) {}
-            if (try gui.button(@src(), "QEMU command line", .{ .expand = .both })) {}
+            if (try gui.button(@src(), "Command line", .{ .expand = .both })) {}
             if (try gui.button(@src(), "Run", .{ .expand = .both })) {
-                var qemu_arguments = qemu.get_arguments(vm);
+                var qemu_arguments = try qemu.get_arguments(vm);
+                defer qemu_arguments.deinit();
 
-                _ = std.ChildProcess.exec(.{ .argv = qemu_arguments, .allocator = gpa }) catch {
+                _ = std.ChildProcess.exec(.{ .argv = qemu_arguments.items, .allocator = gpa }) catch {
                     try gui.dialog(@src(), .{ .title = "Error", .message = "Unable to create a child process for QEMU." });
                     return;
                 };

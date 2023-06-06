@@ -3,10 +3,9 @@ const gui = @import("gui");
 const ini = @import("ini.zig");
 const main = @import("main.zig");
 const permanent_buffers = @import("permanent_buffers.zig");
+const utils = @import("utils.zig");
 
 pub var show = false;
-
-const Error = error{ CannotSanitizeOutput, OutOfMemory };
 
 var option_index: u64 = 0;
 var name = std.mem.zeroes([128]u8);
@@ -54,27 +53,27 @@ pub fn gui_frame() !void {
     }
 
     if (try gui.button(@src(), "Create", .{ .expand = .both, .color_style = .accent })) {
-        var actual_name = sanitize_output_name(&name) catch {
+        var actual_name = utils.sanitize_output_name(&name) catch {
             try gui.dialog(@src(), .{ .title = "Error", .message = "Please enter a valid name!" });
             return;
         };
-        var actual_ram = sanitize_output_number(&ram) catch {
+        var actual_ram = utils.sanitize_output_number(&ram) catch {
             try gui.dialog(@src(), .{ .title = "Error", .message = "Please enter a valid amount of RAM!" });
             return;
         };
-        var actual_cores = sanitize_output_number(&cores) catch {
+        var actual_cores = utils.sanitize_output_number(&cores) catch {
             try gui.dialog(@src(), .{ .title = "Error", .message = "Please enter a valid amount of cores!" });
             return;
         };
-        var actual_threads = sanitize_output_number(&threads) catch {
+        var actual_threads = utils.sanitize_output_number(&threads) catch {
             try gui.dialog(@src(), .{ .title = "Error", .message = "Please enter a valid amount of threads!" });
             return;
         };
-        var actual_disk = sanitize_output_number(&disk) catch {
+        var actual_disk = utils.sanitize_output_number(&disk) catch {
             try gui.dialog(@src(), .{ .title = "Error", .message = "Please enter a valid disk size!" });
             return;
         };
-        var actual_boot_image = sanitize_output_text(&boot_image) catch {
+        var actual_boot_image = utils.sanitize_output_text(&boot_image) catch {
             try gui.dialog(@src(), .{ .title = "Error", .message = "Please enter a valid boot image path!" });
             return;
         };
@@ -86,7 +85,8 @@ pub fn gui_frame() !void {
             .machine = .{
                 .name = actual_name.items,
                 .ram = actual_ram,
-                .cpu = "max",
+                .cpu = "host",
+                .features = "",
                 .cores = actual_cores,
                 .threads = actual_threads,
                 .disk = actual_disk,
@@ -122,55 +122,4 @@ fn add_text_option(text: []const u8, buffer: []u8) !void {
 fn add_bool_option(text: []const u8, value: *bool) !void {
     try gui.checkbox(@src(), value, text, .{ .id_extra = option_index });
     option_index += 1;
-}
-
-fn sanitize_output_name(buffer: []u8) Error!std.ArrayList(u8) {
-    if (buffer[0] == 0) {
-        return Error.CannotSanitizeOutput;
-    }
-
-    var sanitized_buffer = std.ArrayList(u8).init(main.gpa);
-
-    for (buffer) |byte| {
-        if (byte == 0) {
-            break;
-        }
-
-        try sanitized_buffer.append(byte);
-    }
-
-    return sanitized_buffer;
-}
-
-fn sanitize_output_text(buffer: []u8) Error!std.ArrayList(u8) {
-    var sanitized_buffer = std.ArrayList(u8).init(main.gpa);
-
-    for (buffer) |byte| {
-        if (byte == 0) {
-            break;
-        }
-
-        try sanitized_buffer.append(byte);
-    }
-
-    return sanitized_buffer;
-}
-
-fn sanitize_output_number(buffer: []u8) Error!u64 {
-    if (buffer[0] == 0) {
-        return Error.CannotSanitizeOutput;
-    }
-
-    var sanitized_buffer = std.ArrayList(u8).init(main.gpa);
-    defer sanitized_buffer.deinit();
-
-    for (buffer) |byte| {
-        if (byte == 0) {
-            break;
-        }
-
-        try sanitized_buffer.append(byte);
-    }
-
-    return std.fmt.parseInt(u64, sanitized_buffer.items, 10) catch return Error.CannotSanitizeOutput;
 }
