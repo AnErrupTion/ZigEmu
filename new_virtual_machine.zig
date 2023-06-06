@@ -2,19 +2,11 @@ const std = @import("std");
 const gui = @import("gui");
 const ini = @import("ini.zig");
 const main = @import("main.zig");
+const permanent_buffers = @import("permanent_buffers.zig");
 
 pub var show = false;
 
 const Error = error{ CannotSanitizeOutput, OutOfMemory };
-const VirtualMachine = struct {
-    name: []const u8,
-    ram: u64,
-    cores: u64,
-    threads: u64,
-    disk: u64,
-    has_boot_image: bool,
-    boot_image: []const u8,
-};
 
 var name = std.mem.zeroes([128]u8);
 var ram = std.mem.zeroes([32]u8);
@@ -60,18 +52,29 @@ pub fn gui_frame() !void {
     }
 
     if (try gui.button(@src(), "Create", .{ .expand = .both })) {
-        var actual_name = sanitize_output_text(&name) catch return;
-        defer actual_name.deinit();
+        var actual_name = sanitize_output_name(&name) catch return;
+        var actual_ram = sanitize_output_number(&ram) catch return;
+        var actual_cores = sanitize_output_number(&cores) catch return;
+        var actual_threads = sanitize_output_number(&threads) catch return;
+        var actual_disk = sanitize_output_number(&disk) catch return;
+        var actual_boot_image = sanitize_output_text(&boot_image) catch return;
 
-        // var vm = VirtualMachine{
-        //     .name = actual_name.items,
-        //     .ram = ram,
-        //     .cores = cores,
-        //     .threads = threads,
-        //     .disk = disk,
-        //     .has_boot_image = has_boot_image,
-        //     .boot_image = boot_image,
-        // };
+        try permanent_buffers.lists.append(actual_name);
+        try permanent_buffers.lists.append(actual_boot_image);
+
+        const vm = main.VirtualMachine{
+            .machine = .{
+                .name = actual_name.items,
+                .ram = actual_ram,
+                .cores = actual_cores,
+                .threads = actual_threads,
+                .disk = actual_disk,
+                .has_boot_image = has_boot_image,
+                .boot_image = actual_boot_image.items,
+            },
+        };
+
+        try main.virtual_machines.append(vm);
 
         try actual_name.append('.');
         try actual_name.append('i');
@@ -81,13 +84,13 @@ pub fn gui_frame() !void {
         var file = try main.virtual_machines_directory.createFile(actual_name.items, .{});
         defer file.close();
 
-        // try ini.writeStruct(vm, file.writer());
+        try ini.writeStruct(vm, file.writer());
 
         show = false;
     }
 }
 
-fn sanitize_output_text(buffer: []u8) Error!std.ArrayList(u8) {
+fn sanitize_output_name(buffer: []u8) Error!std.ArrayList(u8) {
     if (buffer[0] == 0) {
         return Error.CannotSanitizeOutput;
     }
@@ -103,4 +106,37 @@ fn sanitize_output_text(buffer: []u8) Error!std.ArrayList(u8) {
     }
 
     return sanitized_buffer;
+}
+
+fn sanitize_output_text(buffer: []u8) Error!std.ArrayList(u8) {
+    var sanitized_buffer = std.ArrayList(u8).init(main.gpa);
+
+    for (buffer) |byte| {
+        if (byte == 0) {
+            break;
+        }
+
+        try sanitized_buffer.append(byte);
+    }
+
+    return sanitized_buffer;
+}
+
+fn sanitize_output_number(buffer: []u8) Error!u64 {
+    if (buffer[0] == 0) {
+        return Error.CannotSanitizeOutput;
+    }
+
+    var sanitized_buffer = std.ArrayList(u8).init(main.gpa);
+    defer sanitized_buffer.deinit();
+
+    for (buffer) |byte| {
+        if (byte == 0) {
+            break;
+        }
+
+        try sanitized_buffer.append(byte);
+    }
+
+    return std.fmt.parseInt(u64, sanitized_buffer.items, 10) catch return Error.CannotSanitizeOutput;
 }

@@ -1,17 +1,52 @@
 const std = @import("std");
 const gui = @import("gui");
 const Backend = @import("SDLBackend");
+const ini = @import("ini.zig");
 const new_virtual_machine = @import("new_virtual_machine.zig");
+const permanent_buffers = @import("permanent_buffers.zig");
 
 var gpa_instance = std.heap.GeneralPurposeAllocator(.{}){};
 
 pub const gpa = gpa_instance.allocator();
+pub const VirtualMachine = struct {
+    machine: struct {
+        name: []const u8,
+        ram: u64,
+        cores: u64,
+        threads: u64,
+        disk: u64,
+        has_boot_image: bool,
+        boot_image: []const u8,
+    },
+};
 
 pub var virtual_machines_directory: std.fs.Dir = undefined;
+pub var virtual_machines: std.ArrayList(VirtualMachine) = undefined;
 
 pub fn main() !void {
+    defer _ = gpa_instance.deinit();
+
+    permanent_buffers.init();
+    defer permanent_buffers.deinit();
+
     virtual_machines_directory = try std.fs.cwd().openDir("VMs", .{});
     defer virtual_machines_directory.close();
+
+    virtual_machines = std.ArrayList(VirtualMachine).init(gpa);
+    defer virtual_machines.deinit();
+
+    var files = try std.fs.cwd().openIterableDir("VMs", .{});
+    defer files.close();
+
+    var iterator = files.iterate();
+
+    while (try iterator.next()) |file| {
+        var config = try virtual_machines_directory.readFileAlloc(gpa, file.name, 16 * 1024 * 1024); // Free?
+        var vm = try ini.readToStruct(VirtualMachine, config);
+
+        try permanent_buffers.arrays.append(config);
+        try virtual_machines.append(vm);
+    }
 
     var backend = try Backend.init(.{
         .width = 640,
@@ -58,6 +93,10 @@ fn gui_frame() !void {
 
     var scroll = try gui.scrollArea(@src(), .{}, .{ .expand = .both, .color_style = .window });
     defer scroll.deinit();
+
+    for (virtual_machines.items) |vm| {
+        if (try gui.button(@src(), vm.machine.name, .{ .expand = .both })) {}
+    }
 
     try new_virtual_machine.gui_frame();
 }

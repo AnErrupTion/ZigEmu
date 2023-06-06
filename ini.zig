@@ -27,14 +27,14 @@ pub fn getTok(data: []const u8, pos: *usize, state: *State) ?Token {
                     '=' => {
                         state.* = .value;
                         start = pos.*;
-                        if (std.ascii.isSpace(data[start])) start += 1;
+                        if (std.ascii.isWhitespace(data[start])) start += 1;
                         end = start;
                     },
                     ';' => {
                         state.* = .comment;
                     },
                     // if it is whitespace itgets skipped over anyways
-                    else => if (!std.ascii.isSpace(cur)) {
+                    else => if (!std.ascii.isWhitespace(cur)) {
                         state.* = .key;
                         start = pos.* - 1;
                         end = start;
@@ -82,7 +82,7 @@ pub fn getTok(data: []const u8, pos: *usize, state: *State) ?Token {
             },
             .key => {
                 end += 1;
-                if (!(std.ascii.isAlNum(cur) or cur == '_')) {
+                if (!(std.ascii.isAlphanumeric(cur) or cur == '_')) {
                     state.* = .normal;
                     return Token{ .key = data[start..end] };
                 }
