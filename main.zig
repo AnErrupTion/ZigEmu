@@ -3,8 +3,12 @@ const gui = @import("gui");
 const Backend = @import("SDLBackend");
 const ini = @import("ini.zig");
 const new_virtual_machine = @import("new_virtual_machine.zig");
+const processor = @import("processor.zig");
 const permanent_buffers = @import("permanent_buffers.zig");
+const qemu = @import("qemu.zig");
 
+var vm_options: VirtualMachine = undefined;
+var show_vm_options = false;
 var gpa_instance = std.heap.GeneralPurposeAllocator(.{}){};
 
 pub const gpa = gpa_instance.allocator();
@@ -12,6 +16,7 @@ pub const VirtualMachine = struct {
     machine: struct {
         name: []const u8,
         ram: u64,
+        cpu: []const u8,
         cores: u64,
         threads: u64,
         disk: u64,
@@ -59,6 +64,8 @@ pub fn main() !void {
     var win = try gui.Window.init(@src(), 0, gpa, backend.guiBackend());
     defer win.deinit();
 
+    win.theme = &gui.Adwaita.dark;
+
     main_loop: while (true) {
         var arena_allocator = std.heap.ArenaAllocator.init(std.heap.page_allocator);
         defer arena_allocator.deinit();
@@ -85,18 +92,52 @@ pub fn main() !void {
 }
 
 fn gui_frame() !void {
-    gui.themeSet(&gui.Adwaita.dark);
-
-    if (try gui.button(@src(), "New Virtual Machine", .{})) {
-        new_virtual_machine.show = true;
-    }
-
-    var scroll = try gui.scrollArea(@src(), .{}, .{ .expand = .both, .color_style = .window });
+    var scroll = try gui.scrollArea(@src(), .{}, .{ .expand = .both });
     defer scroll.deinit();
 
+    if (try gui.button(@src(), "Toggle Theme", .{ .expand = .both, .color_style = .success })) {
+        if (gui.themeGet() == &gui.Adwaita.dark) {
+            gui.themeSet(&gui.Adwaita.light);
+        } else {
+            gui.themeSet(&gui.Adwaita.dark);
+        }
+    }
+
+    if (try gui.button(@src(), "New Virtual Machine", .{ .expand = .both, .color_style = .success })) {
+        new_virtual_machine.show = true;
+        new_virtual_machine.init();
+    }
+
+    var index: u64 = 0;
+
     for (virtual_machines.items) |vm| {
-        if (try gui.button(@src(), vm.machine.name, .{ .expand = .both })) {}
+        if (try gui.button(@src(), vm.machine.name, .{ .expand = .both, .color_style = .accent, .id_extra = index })) {
+            vm_options = vm;
+            show_vm_options = !show_vm_options;
+        }
+
+        if (show_vm_options and std.meta.eql(vm_options, vm)) {
+            if (try gui.button(@src(), "Processor", .{ .expand = .both })) {
+                processor.vm = vm;
+                processor.show = true;
+
+                try processor.init();
+            }
+            if (try gui.button(@src(), "Memory", .{ .expand = .both })) {}
+            if (try gui.button(@src(), "QEMU command line", .{ .expand = .both })) {}
+            if (try gui.button(@src(), "Run", .{ .expand = .both })) {
+                var qemu_arguments = qemu.get_arguments(vm);
+
+                _ = std.ChildProcess.exec(.{ .argv = qemu_arguments, .allocator = gpa }) catch {
+                    try gui.dialog(@src(), .{ .title = "Error", .message = "Unable to create a child process for QEMU." });
+                    return;
+                };
+            }
+        }
+
+        index += 1;
     }
 
     try new_virtual_machine.gui_frame();
+    try processor.gui_frame();
 }
