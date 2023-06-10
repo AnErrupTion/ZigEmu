@@ -4,12 +4,9 @@ const Backend = @import("SDLBackend");
 const structs = @import("structs.zig");
 const ini = @import("ini.zig");
 const new_virtual_machine = @import("new_virtual_machine.zig");
-const processor = @import("processor.zig");
+const edit_virtual_machine = @import("edit_virtual_machine.zig");
 const permanent_buffers = @import("permanent_buffers.zig");
-const qemu = @import("qemu.zig");
 
-var vm_options: structs.VirtualMachine = undefined;
-var show_vm_options = false;
 var gpa_instance = std.heap.GeneralPurposeAllocator(.{}){};
 
 pub const gpa = gpa_instance.allocator();
@@ -85,61 +82,58 @@ pub fn main() !void {
 }
 
 fn gui_frame() !void {
-    var scroll = try gui.scrollArea(@src(), .{}, .{ .expand = .both });
-    defer scroll.deinit();
+    {
+        var m = try gui.menu(@src(), .horizontal, .{ .background = true, .expand = .horizontal });
+        defer m.deinit();
 
-    if (try gui.button(@src(), "Toggle Theme", .{ .expand = .both, .color_style = .success })) {
-        if (gui.themeGet() == &gui.Adwaita.dark) {
-            gui.themeSet(&gui.Adwaita.light);
-        } else {
-            gui.themeSet(&gui.Adwaita.dark);
-        }
-    }
+        if (try gui.menuItemLabel(@src(), "File", true, .{ .expand = .none })) |r| {
+            var fw = try gui.popup(@src(), gui.Rect.fromPoint(gui.Point{ .x = r.x, .y = r.y + r.h }), .{});
+            defer fw.deinit();
 
-    if (try gui.button(@src(), "New Virtual Machine", .{ .expand = .both, .color_style = .success })) {
-        new_virtual_machine.show = true;
-        new_virtual_machine.init();
-    }
+            if (try gui.menuItemLabel(@src(), "New Virtual Machine", false, .{}) != null) {
+                new_virtual_machine.show = true;
+                new_virtual_machine.init();
 
-    var index: u64 = 0;
-
-    for (virtual_machines.items) |vm| {
-        if (try gui.button(@src(), vm.basic.name, .{ .expand = .both, .color_style = .accent, .id_extra = index })) {
-            vm_options = vm;
-            show_vm_options = !show_vm_options;
-        }
-
-        if (show_vm_options and std.meta.eql(vm_options, vm)) {
-            if (try gui.button(@src(), "Basic", .{ .expand = .both })) {}
-            if (try gui.button(@src(), "Processor", .{ .expand = .both })) {
-                processor.vm = vm;
-                processor.show = true;
-
-                try processor.init();
-            }
-            if (try gui.button(@src(), "Memory", .{ .expand = .both })) {}
-            if (try gui.button(@src(), "Network", .{ .expand = .both })) {}
-            if (try gui.button(@src(), "Drives", .{ .expand = .both })) {}
-            if (try gui.button(@src(), "Graphics", .{ .expand = .both })) {}
-            if (try gui.button(@src(), "Audio", .{ .expand = .both })) {}
-            if (try gui.button(@src(), "Peripherals", .{ .expand = .both })) {}
-            if (try gui.button(@src(), "Command line", .{ .expand = .both })) {}
-            if (try gui.button(@src(), "Run", .{ .expand = .both })) {
-                var qemu_arguments = try qemu.get_arguments(vm);
-                defer qemu_arguments.deinit();
-
-                std.debug.print("{s}\n", .{qemu_arguments.items});
-
-                _ = std.ChildProcess.exec(.{ .argv = qemu_arguments.items, .allocator = gpa }) catch {
-                    try gui.dialog(@src(), .{ .title = "Error", .message = "Unable to create a child process for QEMU." });
-                    return;
-                };
+                gui.menuGet().?.close();
             }
         }
 
-        index += 1;
+        if (try gui.menuItemLabel(@src(), "View", true, .{ .expand = .none })) |r| {
+            var fw = try gui.popup(@src(), gui.Rect.fromPoint(gui.Point{ .x = r.x, .y = r.y + r.h }), .{});
+            defer fw.deinit();
+
+            if (gui.themeGet() == &gui.Adwaita.dark) {
+                if (try gui.menuItemLabel(@src(), "Use Light Theme", false, .{}) != null) {
+                    gui.themeSet(&gui.Adwaita.light);
+                    gui.menuGet().?.close();
+                }
+            } else {
+                if (try gui.menuItemLabel(@src(), "Use Dark Theme", false, .{}) != null) {
+                    gui.themeSet(&gui.Adwaita.dark);
+                    gui.menuGet().?.close();
+                }
+            }
+        }
+    }
+
+    {
+        var scroll = try gui.scrollArea(@src(), .{}, .{ .expand = .both, .color_style = .window });
+        defer scroll.deinit();
+
+        var index: u64 = 0;
+
+        for (virtual_machines.items) |vm| {
+            if (try gui.button(@src(), vm.basic.name, .{ .expand = .both, .color_style = .accent, .id_extra = index })) {
+                edit_virtual_machine.vm = vm;
+                edit_virtual_machine.show = true;
+
+                try edit_virtual_machine.init();
+            }
+
+            index += 1;
+        }
     }
 
     try new_virtual_machine.gui_frame();
-    try processor.gui_frame();
+    try edit_virtual_machine.gui_frame();
 }

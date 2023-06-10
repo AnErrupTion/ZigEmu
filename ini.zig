@@ -149,13 +149,25 @@ pub fn writeStruct(struct_value: anytype, writer: anytype) !void {
         try writer.print("[{s}]\n", .{field.name});
         const pairs = @field(struct_value, field.name);
         inline for (std.meta.fields(@TypeOf(pairs))) |pair| {
-            // TODO: Enum value without enum name (e.g. structs.Chipset.q35)
             const key_value = @field(pairs, pair.name);
-            const format = switch (@TypeOf(key_value)) {
-                []const u8 => "{s}",
-                else => "{}",
-            };
-            try writer.print("{s} = " ++ format ++ "\n", .{ pair.name, key_value });
+            const key_value_type = @TypeOf(key_value);
+            const key_value_type_info = @typeInfo(key_value_type);
+
+            if (key_value_type == []const u8) {
+                try writer.print("{s} = {s}\n", .{ pair.name, key_value });
+            } else if (key_value_type_info == .Enum) {
+                inline for (key_value_type_info.Enum.fields) |f| {
+                    var buffer: [128]u8 = undefined;
+                    var haystack = try std.fmt.bufPrint(&buffer, "{}", .{key_value});
+
+                    // TODO: Check type?
+                    if (std.mem.endsWith(u8, haystack, f.name)) {
+                        try writer.print("{s} = {s}\n", .{ pair.name, f.name });
+                    }
+                }
+            } else {
+                try writer.print("{s} = {}\n", .{ pair.name, key_value });
+            }
         }
     }
 }

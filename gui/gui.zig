@@ -3272,6 +3272,7 @@ pub const Window = struct {
     pub fn rectFor(self: *Self, id: u32, min_size: Size, e: Options.Expand, g: Options.Gravity) Rect {
         var r = self.wd.rect;
         r.y = self.next_widget_ypos;
+        r.h -= r.y;
         const ret = placeIn(r, minSize(id, min_size), e, g);
         self.next_widget_ypos += ret.h;
         return ret;
@@ -3900,8 +3901,8 @@ pub const FloatingWindowWidget = struct {
 pub fn windowHeader(str: []const u8, right_str: []const u8, openflag: ?*bool) !void {
     var over = try gui.overlay(@src(), .{ .expand = .horizontal });
 
-    if (try gui.buttonIcon(@src(), 14, "close", gui.icons.papirus.actions.window_close_symbolic, .{ .gravity_y = 0.5, .corner_radius = Rect.all(14), .padding = Rect.all(2), .margin = Rect.all(2) })) {
-        if (openflag) |of| {
+    if (openflag) |of| {
+        if (try gui.buttonIcon(@src(), 14, "close", gui.icons.papirus.actions.window_close_symbolic, .{ .gravity_y = 0.5, .corner_radius = Rect.all(14), .padding = Rect.all(2), .margin = Rect.all(2) })) {
             of.* = false;
         }
     }
@@ -3958,7 +3959,7 @@ pub fn dialogAdd(win: ?*Window, src: std.builtin.SourceLocation, id_extra: usize
     } else {
         if (current_window) |cw| {
             const parent = parentGet();
-            const id = parent.extendID(src, id_extra);
+            const id = parent.extendId(src, id_extra);
             const mutex = try cw.dialogAdd(id, display);
             return .{ .id = id, .mutex = mutex };
         } else {
@@ -4068,7 +4069,7 @@ pub fn toastAdd(win: ?*Window, src: std.builtin.SourceLocation, id_extra: usize,
     } else {
         if (current_window) |cw| {
             const parent = parentGet();
-            const id = parent.extendID(src, id_extra);
+            const id = parent.extendId(src, id_extra);
             const mutex = try cw.toastAdd(id, subwindow_id, display, timeout);
             return .{ .id = id, .mutex = mutex };
         } else {
@@ -4648,7 +4649,7 @@ pub const TextLayoutWidget = struct {
     };
 
     wd: WidgetData = undefined,
-    corners: [2]?Rect = [_]?Rect{null} ** 2,
+    corners: [4]?Rect = [_]?Rect{null} ** 4,
     insert_pt: Point = Point{},
     prevClip: Rect = Rect{},
     first_line: bool = true,
@@ -5081,10 +5082,18 @@ pub const TextLayoutWidget = struct {
     pub fn rectFor(self: *Self, id: u32, min_size: Size, e: Options.Expand, g: Options.Gravity) Rect {
         const ret = placeIn(self.wd.contentRect().justSize(), minSize(id, min_size), e, g);
         var i: usize = undefined;
-        if (g.x < 0.5) {
-            i = 0; // upleft
+        if (g.y < 0.5) {
+            if (g.x < 0.5) {
+                i = 0; // upleft
+            } else {
+                i = 1; // upright
+            }
         } else {
-            i = 1; // upright
+            if (g.x < 0.5) {
+                i = 2; // downleft
+            } else {
+                i = 3; // downright
+            }
         }
 
         self.corners[i] = ret;
@@ -6489,6 +6498,9 @@ pub fn menu(src: std.builtin.SourceLocation, dir: Direction, opts: Options) !*Me
 
 pub const MenuWidget = struct {
     const Self = @This();
+    pub var defaults: Options = .{
+        .color_style = .window,
+    };
 
     wd: WidgetData = undefined,
 
@@ -6501,7 +6513,8 @@ pub const MenuWidget = struct {
 
     pub fn init(src: std.builtin.SourceLocation, dir: Direction, opts: Options) MenuWidget {
         var self = Self{};
-        self.wd = WidgetData.init(src, opts);
+        const options = defaults.override(opts);
+        self.wd = WidgetData.init(src, options);
 
         self.winId = subwindowCurrentId();
         self.dir = dir;
@@ -6523,7 +6536,7 @@ pub const MenuWidget = struct {
         try self.wd.register("Menu", null);
         try self.wd.borderAndBackground(.{});
 
-        self.box = BoxWidget.init(@src(), self.dir, false, self.wd.options.strip());
+        self.box = BoxWidget.init(@src(), self.dir, false, self.wd.options.strip().override(.{ .expand = .both }));
         try self.box.install(.{});
     }
 
@@ -8415,7 +8428,7 @@ pub const WidgetData = struct {
         self.options = opts;
 
         self.parent = parentGet();
-        self.id = self.parent.extendID(src, opts.idExtra());
+        self.id = self.parent.extendId(src, opts.idExtra());
 
         self.min_size = self.options.min_sizeGet();
 
@@ -8658,7 +8671,7 @@ pub const Widget = struct {
         return self.vtable.data(self.ptr);
     }
 
-    pub fn extendID(self: Widget, src: std.builtin.SourceLocation, id_extra: usize) u32 {
+    pub fn extendId(self: Widget, src: std.builtin.SourceLocation, id_extra: usize) u32 {
         var hash = fnv.init();
         hash.value = self.data().id;
         hash.update(src.file);
@@ -9011,8 +9024,7 @@ pub const examples = struct {
             //std.debug.print("scale {d} {d}\n", .{ scale_val, scale_val * themeGet().font_body.size });
         }
 
-        try gui.checkbox(@src(), &gui.currentWindow().snap_to_pixels, "Snap to Pixels", .{});
-        try gui.labelNoFmt(@src(), "  - watch window title", .{});
+        try gui.checkbox(@src(), &gui.currentWindow().snap_to_pixels, "Snap to Pixels (see window title)", .{});
 
         if (try gui.expander(@src(), "Show Font Atlases", .{ .expand = .horizontal })) {
             try debugFontAtlases(@src(), .{});

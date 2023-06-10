@@ -38,9 +38,6 @@ pub fn gui_frame() !void {
 
     try gui.windowHeader("Create a new virtual machine", "", &show);
 
-    var scroll = try gui.scrollArea(@src(), .{}, .{ .expand = .both });
-    defer scroll.deinit();
-
     option_index = 0;
 
     try add_text_option("Name", &name);
@@ -53,7 +50,7 @@ pub fn gui_frame() !void {
         try add_text_option("Boot image", &boot_image);
     }
 
-    if (try gui.button(@src(), "Create", .{ .expand = .both, .color_style = .accent })) {
+    if (try gui.button(@src(), "Create", .{ .expand = .horizontal, .color_style = .accent })) {
         var actual_name = utils.sanitize_output_name(&name) catch {
             try gui.dialog(@src(), .{ .title = "Error", .message = "Please enter a valid name!" });
             return;
@@ -194,7 +191,7 @@ fn add_text_option(text: []const u8, buffer: []u8) !void {
     try gui.label(@src(), "{s}:", .{text}, .{ .id_extra = option_index });
     option_index += 1;
 
-    try gui.textEntry(@src(), .{ .text = buffer }, .{ .expand = .both, .id_extra = option_index });
+    try gui.textEntry(@src(), .{ .text = buffer }, .{ .expand = .horizontal, .id_extra = option_index });
     option_index += 1;
 }
 
