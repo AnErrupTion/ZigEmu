@@ -51,7 +51,7 @@ pub fn gui_frame() !void {
     }
 
     if (try gui.button(@src(), "Create", .{ .expand = .horizontal, .color_style = .accent })) {
-        var actual_name = utils.sanitize_output_name(&name) catch {
+        var actual_name = utils.sanitize_output_text(&name, true) catch {
             try gui.dialog(@src(), .{ .title = "Error", .message = "Please enter a valid name!" });
             return;
         };
@@ -71,7 +71,7 @@ pub fn gui_frame() !void {
             try gui.dialog(@src(), .{ .title = "Error", .message = "Please enter a valid disk size!" });
             return;
         };
-        var actual_boot_image = utils.sanitize_output_text(&boot_image) catch {
+        var actual_boot_image = utils.sanitize_output_text(&boot_image, false) catch {
             try gui.dialog(@src(), .{ .title = "Error", .message = "Please enter a valid boot image path!" });
             return;
         };
@@ -83,6 +83,7 @@ pub fn gui_frame() !void {
         var boot_drive: structs.Drive = .{
             .is_cdrom = false,
             .bus = structs.DriveBus.ide,
+            .format = structs.DriveFormat.raw,
             .path = "",
         };
 
@@ -90,6 +91,7 @@ pub fn gui_frame() !void {
             boot_drive = .{
                 .is_cdrom = true,
                 .bus = structs.DriveBus.sata,
+                .format = structs.DriveFormat.raw,
                 .path = actual_boot_image.items,
             };
         }
@@ -130,22 +132,26 @@ pub fn gui_frame() !void {
             .drive0 = .{
                 .is_cdrom = false,
                 .bus = structs.DriveBus.sata,
+                .format = structs.DriveFormat.raw,
                 .path = disk_file,
             },
             .drive1 = boot_drive,
             .drive2 = .{
                 .is_cdrom = false,
                 .bus = structs.DriveBus.ide,
+                .format = structs.DriveFormat.raw,
                 .path = "",
             },
             .drive3 = .{
                 .is_cdrom = false,
                 .bus = structs.DriveBus.ide,
+                .format = structs.DriveFormat.raw,
                 .path = "",
             },
             .drive4 = .{
                 .is_cdrom = false,
                 .bus = structs.DriveBus.ide,
+                .format = structs.DriveFormat.raw,
                 .path = "",
             },
         };
@@ -157,13 +163,10 @@ pub fn gui_frame() !void {
         try actual_name.append('n');
         try actual_name.append('i');
 
-        var file = try main.virtual_machines_directory.createFile(actual_name.items, .{});
+        var file = try std.fs.cwd().createFile(actual_name.items, .{});
         defer file.close();
 
         try ini.writeStruct(vm, file.writer());
-
-        var disk_file_path = try std.fmt.allocPrint(main.gpa, "VMs/{s}", .{disk_file});
-        defer main.gpa.free(disk_file_path);
 
         var disk_size = try std.fmt.allocPrint(main.gpa, "{d}G", .{actual_disk});
         defer main.gpa.free(disk_size);
@@ -174,7 +177,7 @@ pub fn gui_frame() !void {
             "-q",
             "-f",
             "raw",
-            disk_file_path,
+            disk_file,
             disk_size,
         };
 

@@ -11,12 +11,21 @@ pub var show = false;
 
 var setting: u64 = 0;
 var option_index: u64 = 0;
+
+var name = std.mem.zeroes([128]u8);
+var architecture = std.mem.zeroes([16]u8);
+var has_acceleration = false;
+var chipset = std.mem.zeroes([8]u8);
+var usb_type = std.mem.zeroes([4]u8);
+var has_ahci = false;
+
 var cpu = std.mem.zeroes([128]u8);
 var features = std.mem.zeroes([1024]u8);
 var cores = std.mem.zeroes([16]u8);
 var threads = std.mem.zeroes([16]u8);
 
 pub fn init() !void {
+    try init_basic();
     try init_cpu();
 }
 
@@ -30,61 +39,75 @@ pub fn gui_frame() !void {
 
     try gui.windowHeader("Edit virtual machine", vm.basic.name, &show);
 
+    var hbox = try gui.box(@src(), .horizontal, .{ .expand = .horizontal, .min_size_content = .{ .h = 600 } });
+    defer hbox.deinit();
+
     {
-        var hbox = try gui.boxEqual(@src(), .horizontal, .{ .expand = .horizontal, .min_size_content = .{ .h = 600 } });
-        defer hbox.deinit();
+        var vbox = try gui.box(@src(), .vertical, .{ .expand = .both });
+        defer vbox.deinit();
 
-        {
-            var vbox = try gui.box(@src(), .vertical, .{ .expand = .both });
-            defer vbox.deinit();
-
-            if (try gui.button(@src(), "Basic", .{ .expand = .horizontal })) {
-                setting = 0;
-            }
-            if (try gui.button(@src(), "Processor", .{ .expand = .horizontal })) {
-                setting = 1;
-            }
-            if (try gui.button(@src(), "Memory", .{ .expand = .horizontal })) {
-                setting = 2;
-            }
-            if (try gui.button(@src(), "Network", .{ .expand = .horizontal })) {
-                setting = 3;
-            }
-            if (try gui.button(@src(), "Drives", .{ .expand = .horizontal })) {
-                setting = 4;
-            }
-            if (try gui.button(@src(), "Graphics", .{ .expand = .horizontal })) {
-                setting = 5;
-            }
-            if (try gui.button(@src(), "Audio", .{ .expand = .horizontal })) {
-                setting = 6;
-            }
-            if (try gui.button(@src(), "Peripherals", .{ .expand = .horizontal })) {
-                setting = 7;
-            }
-            if (try gui.button(@src(), "Command line", .{ .expand = .horizontal })) {
-                setting = 8;
-            }
-            if (try gui.button(@src(), "Run", .{ .expand = .horizontal })) {
-                var qemu_arguments = try qemu.get_arguments(vm);
-                defer qemu_arguments.deinit();
-
-                std.debug.print("{s}\n", .{qemu_arguments.items});
-
-                _ = std.ChildProcess.exec(.{ .argv = qemu_arguments.items, .allocator = main.gpa }) catch {
-                    try gui.dialog(@src(), .{ .title = "Error", .message = "Unable to create a child process for QEMU." });
-                    return;
-                };
-            }
+        if (try gui.button(@src(), "Basic", .{ .expand = .horizontal })) {
+            setting = 0;
         }
+        if (try gui.button(@src(), "Processor", .{ .expand = .horizontal })) {
+            setting = 1;
+        }
+        if (try gui.button(@src(), "Memory", .{ .expand = .horizontal })) {
+            setting = 2;
+        }
+        if (try gui.button(@src(), "Network", .{ .expand = .horizontal })) {
+            setting = 3;
+        }
+        if (try gui.button(@src(), "Drives", .{ .expand = .horizontal })) {
+            setting = 4;
+        }
+        if (try gui.button(@src(), "Graphics", .{ .expand = .horizontal })) {
+            setting = 5;
+        }
+        if (try gui.button(@src(), "Audio", .{ .expand = .horizontal })) {
+            setting = 6;
+        }
+        if (try gui.button(@src(), "Peripherals", .{ .expand = .horizontal })) {
+            setting = 7;
+        }
+        if (try gui.button(@src(), "Command line", .{ .expand = .horizontal })) {
+            setting = 8;
+        }
+        if (try gui.button(@src(), "Run", .{ .expand = .horizontal, .color_style = .accent })) {
+            var qemu_arguments = try qemu.get_arguments(vm);
+            defer qemu_arguments.deinit();
 
-        {
-            var vbox = try gui.box(@src(), .vertical, .{ .expand = .both });
-            defer vbox.deinit();
+            std.debug.print("{s}\n", .{qemu_arguments.items});
 
-            try cpu_gui_frame();
+            _ = std.ChildProcess.exec(.{ .argv = qemu_arguments.items, .allocator = main.gpa }) catch {
+                try gui.dialog(@src(), .{ .title = "Error", .message = "Unable to create a child process for QEMU." });
+                return;
+            };
         }
     }
+
+    {
+        var vbox = try gui.box(@src(), .vertical, .{ .expand = .both });
+        defer vbox.deinit();
+
+        try basic_gui_frame();
+        try cpu_gui_frame();
+    }
+}
+
+fn init_basic() !void {
+    @memset(&name, 0);
+    @memset(&architecture, 0);
+    @memset(&chipset, 0);
+    @memset(&usb_type, 0);
+
+    set_buffer(&name, vm.basic.name);
+    set_buffer(&architecture, utils.architecture_to_string(vm.basic.architecture));
+    set_buffer(&chipset, utils.chipset_to_string(vm.basic.chipset));
+    set_buffer(&usb_type, utils.usb_type_to_string(vm.basic.usb_type));
+
+    has_acceleration = vm.basic.has_acceleration;
+    has_ahci = vm.basic.has_ahci;
 }
 
 fn init_cpu() !void {
@@ -105,6 +128,72 @@ fn init_cpu() !void {
     set_buffer(&threads, threads_format);
 }
 
+fn basic_gui_frame() !void {
+    if (setting != 0) {
+        return;
+    }
+
+    option_index = 0;
+
+    try add_text_option("Name", &name);
+    try add_text_option("Architecture", &architecture);
+    try add_bool_option("Use hardware acceleration", &has_acceleration); // TODO: Detect host architecture
+    try add_text_option("Chipset", &chipset);
+    try add_text_option("USB type", &usb_type);
+    try add_bool_option("Use AHCI", &has_ahci);
+
+    if (try gui.button(@src(), "Save", .{ .expand = .horizontal, .color_style = .accent })) {
+        // Sanity checks
+        if (!has_acceleration and std.mem.eql(u8, (try utils.sanitize_output_text(&cpu, false)).items, "host")) {
+            try gui.dialog(@src(), .{ .title = "Error", .message = "CPU model \"host\" requires hardware acceleration." });
+            return;
+        }
+
+        // Write updated data to struct
+        vm.basic.name = (utils.sanitize_output_text(&name, true) catch {
+            try gui.dialog(@src(), .{ .title = "Error", .message = "Please enter a valid name!" });
+            return;
+        }).items;
+
+        vm.basic.architecture = utils.string_to_architecture((utils.sanitize_output_text(&architecture, false) catch {
+            try gui.dialog(@src(), .{ .title = "Error", .message = "Please enter a valid architecture name!" });
+            return;
+        }).items) catch {
+            try gui.dialog(@src(), .{ .title = "Error", .message = "Please enter a valid architecture name!" });
+            return;
+        };
+
+        vm.basic.has_acceleration = has_acceleration;
+
+        vm.basic.chipset = utils.string_to_chipset((utils.sanitize_output_text(&chipset, false) catch {
+            try gui.dialog(@src(), .{ .title = "Error", .message = "Please enter a valid chipset name!" });
+            return;
+        }).items) catch {
+            try gui.dialog(@src(), .{ .title = "Error", .message = "Please enter a valid chipset name!" });
+            return;
+        };
+
+        vm.basic.usb_type = utils.string_to_usb_type((utils.sanitize_output_text(&usb_type, false) catch {
+            try gui.dialog(@src(), .{ .title = "Error", .message = "Please enter a valid USB type!" });
+            return;
+        }).items) catch {
+            try gui.dialog(@src(), .{ .title = "Error", .message = "Please enter a valid USB type!" });
+            return;
+        };
+
+        vm.basic.has_ahci = has_ahci;
+
+        // Write to file
+        var file_name = try std.fmt.allocPrint(main.gpa, "{s}.ini", .{vm.basic.name});
+        defer main.gpa.free(file_name);
+
+        var file = try std.fs.cwd().openFile(file_name, .{ .mode = .read_write });
+        defer file.close();
+
+        try ini.writeStruct(vm, file.writer());
+    }
+}
+
 fn cpu_gui_frame() !void {
     if (setting != 1) {
         return;
@@ -112,23 +201,22 @@ fn cpu_gui_frame() !void {
 
     option_index = 0;
 
-    try add_option("CPU", &cpu);
-    try add_option("Features", &features);
-    try add_option("Cores", &cores);
-    try add_option("Threads", &threads);
+    try add_text_option("CPU", &cpu);
+    try add_text_option("Features", &features);
+    try add_text_option("Cores", &cores);
+    try add_text_option("Threads", &threads);
 
     if (try gui.button(@src(), "Save", .{ .expand = .horizontal, .color_style = .accent })) {
-        var sanitized_cpu = (utils.sanitize_output_text(&cpu) catch {
+        // Write updated data to struct
+        vm.processor.cpu = utils.string_to_cpu((utils.sanitize_output_text(&cpu, false) catch {
             try gui.dialog(@src(), .{ .title = "Error", .message = "Please enter a valid CPU name!" });
             return;
-        }).items;
-
-        vm.processor.cpu = utils.string_to_cpu(sanitized_cpu) catch {
+        }).items) catch {
             try gui.dialog(@src(), .{ .title = "Error", .message = "Please enter a valid CPU name!" });
             return;
         };
 
-        vm.processor.features = (utils.sanitize_output_text(&features) catch {
+        vm.processor.features = (utils.sanitize_output_text(&features, false) catch {
             try gui.dialog(@src(), .{ .title = "Error", .message = "Please enter a valid feature subset!" });
             return;
         }).items;
@@ -143,10 +231,11 @@ fn cpu_gui_frame() !void {
             return;
         };
 
+        // Write to file
         var file_name = try std.fmt.allocPrint(main.gpa, "{s}.ini", .{vm.basic.name});
         defer main.gpa.free(file_name);
 
-        var file = try main.virtual_machines_directory.createFile(file_name, .{});
+        var file = try std.fs.cwd().createFile(file_name, .{});
         defer file.close();
 
         try ini.writeStruct(vm, file.writer());
@@ -162,10 +251,15 @@ fn set_buffer(buffer: []u8, value: []const u8) void {
     }
 }
 
-fn add_option(name: []const u8, buffer: []u8) !void {
-    try gui.label(@src(), "{s}:", .{name}, .{ .id_extra = option_index });
+fn add_text_option(option_name: []const u8, buffer: []u8) !void {
+    try gui.label(@src(), "{s}:", .{option_name}, .{ .id_extra = option_index });
     option_index += 1;
 
     try gui.textEntry(@src(), .{ .text = buffer }, .{ .expand = .horizontal, .id_extra = option_index });
+    option_index += 1;
+}
+
+fn add_bool_option(option_name: []const u8, value: *bool) !void {
+    try gui.checkbox(@src(), value, option_name, .{ .id_extra = option_index });
     option_index += 1;
 }

@@ -7,11 +7,13 @@ const permanent_buffers = @import("permanent_buffers.zig");
 pub fn get_arguments(vm: structs.VirtualMachine) !std.ArrayList([]const u8) {
     var list = std.ArrayList([]const u8).init(main.gpa);
 
-    var name = try std.fmt.allocPrint(main.gpa, "\"{s}\",process=\"{s}\"", .{ vm.basic.name, vm.basic.name });
+    var qemu_name = try std.fmt.allocPrint(main.gpa, "qemu-system-{s}", .{utils.architecture_to_string(vm.basic.architecture)});
+    var name = try std.fmt.allocPrint(main.gpa, "{s},process={s}", .{ vm.basic.name, vm.basic.name });
     var cpu = if (vm.processor.features.len > 0) try std.fmt.allocPrint(main.gpa, "{s},{s}", .{ utils.cpu_to_string(vm.processor.cpu), vm.processor.features }) else utils.cpu_to_string(vm.processor.cpu);
     var ram = try std.fmt.allocPrint(main.gpa, "{d}M", .{vm.memory.ram});
     var smp = try std.fmt.allocPrint(main.gpa, "cores={d},threads={d}", .{ vm.processor.cores, vm.processor.threads });
 
+    try permanent_buffers.arrays.append(qemu_name);
     try permanent_buffers.arrays.append(name);
     if (vm.processor.features.len > 0) {
         try permanent_buffers.arrays.append(cpu);
@@ -19,13 +21,15 @@ pub fn get_arguments(vm: structs.VirtualMachine) !std.ArrayList([]const u8) {
     try permanent_buffers.arrays.append(ram);
     try permanent_buffers.arrays.append(smp);
 
-    try list.append("qemu-system-x86_64"); // TODO: Other architectures
+    try list.append(qemu_name);
     try list.append("-nodefaults");
 
+    try list.append("-accel");
+    // TODO: Other accelerations (like WHPX on Windows)
     if (vm.basic.has_acceleration) {
-        // TODO: Other accelerations (like WHPX on Windows)
-        try list.append("-accel");
         try list.append("kvm");
+    } else {
+        try list.append("tcg");
     }
 
     try list.append("-machine");
@@ -131,7 +135,7 @@ pub fn get_arguments(vm: structs.VirtualMachine) !std.ArrayList([]const u8) {
     }
 
     if (!std.mem.eql(u8, vm.drive0.path, "")) {
-        var drive = try std.fmt.allocPrint(main.gpa, "if=none,file=\"{s}\",id=drive0", .{vm.drive0.path});
+        var drive = try std.fmt.allocPrint(main.gpa, "if=none,file={s},format={s},id=drive0", .{ vm.drive0.path, utils.drive_format_to_string(vm.drive0.format) });
 
         try permanent_buffers.arrays.append(drive);
 
@@ -167,7 +171,7 @@ pub fn get_arguments(vm: structs.VirtualMachine) !std.ArrayList([]const u8) {
     }
 
     if (!std.mem.eql(u8, vm.drive1.path, "")) {
-        var drive = try std.fmt.allocPrint(main.gpa, "if=none,file=\"{s}\",id=drive1", .{vm.drive1.path});
+        var drive = try std.fmt.allocPrint(main.gpa, "if=none,file={s},format={s},id=drive1", .{ vm.drive1.path, utils.drive_format_to_string(vm.drive1.format) });
 
         try permanent_buffers.arrays.append(drive);
 

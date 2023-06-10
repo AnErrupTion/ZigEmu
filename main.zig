@@ -36,12 +36,14 @@ pub fn main() !void {
             continue;
         }
 
-        var config = try virtual_machines_directory.readFileAlloc(gpa, file.name, 16 * 1024 * 1024); // Free?
+        var config = try virtual_machines_directory.readFileAlloc(gpa, file.name, 16 * 1024 * 1024); // TODO: Free?
         var vm = try ini.readToStruct(structs.VirtualMachine, config);
 
         try permanent_buffers.arrays.append(config);
         try virtual_machines.append(vm);
     }
+
+    try virtual_machines_directory.setAsCwd();
 
     var backend = try Backend.init(.{
         .width = 640,

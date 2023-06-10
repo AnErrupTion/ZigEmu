@@ -45,6 +45,14 @@ pub const DriveBus = enum {
     virtio,
 };
 
+pub const DriveFormat = enum {
+    raw,
+    qcow2,
+    vmdk,
+    vdi,
+    vhd,
+};
+
 pub const UsbType = enum {
     none,
     ohci,
@@ -56,6 +64,7 @@ pub const UsbType = enum {
 pub const Drive = struct {
     is_cdrom: bool,
     bus: DriveBus,
+    format: DriveFormat,
     path: []const u8,
 };
 
