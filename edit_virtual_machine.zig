@@ -26,6 +26,11 @@ var threads = std.mem.zeroes([16]u8);
 
 var ram = std.mem.zeroes([32]u8);
 
+var display = std.mem.zeroes([8]u8);
+var gpu = std.mem.zeroes([16]u8);
+var has_vga_emulation = false;
+var has_graphics_acceleration = false;
+
 pub fn init() !void {
     try init_basic();
     try init_memory();
@@ -173,7 +178,16 @@ fn init_processor() !void {
 
 fn init_network() !void {}
 
-fn init_graphics() !void {}
+fn init_graphics() !void {
+    @memset(&display, 0);
+    @memset(&gpu, 0);
+
+    set_buffer(&display, utils.display_to_string(vm.graphics.display));
+    set_buffer(&gpu, utils.gpu_to_string(vm.graphics.gpu));
+
+    has_vga_emulation = vm.graphics.has_vga_emulation;
+    has_graphics_acceleration = vm.graphics.has_graphics_acceleration;
+}
 
 fn init_audio() !void {}
 
@@ -186,18 +200,12 @@ fn basic_gui_frame() !void {
 
     try add_text_option("Name", &name);
     try add_text_option("Architecture", &architecture);
-    try add_bool_option("Use hardware acceleration", &has_acceleration); // TODO: Detect host architecture
+    try add_bool_option("Hardware acceleration", &has_acceleration); // TODO: Detect host architecture
     try add_text_option("Chipset", &chipset);
     try add_text_option("USB type", &usb_type);
     try add_bool_option("Use AHCI", &has_ahci);
 
     if (try gui.button(@src(), "Save", .{ .expand = .horizontal, .color_style = .accent })) {
-        // Sanity checks
-        if (!has_acceleration and std.mem.eql(u8, (try utils.sanitize_output_text(&cpu, false)).items, "host")) {
-            try gui.dialog(@src(), .{ .title = "Error", .message = "CPU model \"host\" requires hardware acceleration." });
-            return;
-        }
-
         // Write updated data to struct
         vm.basic.name = (utils.sanitize_output_text(&name, true) catch {
             try gui.dialog(@src(), .{ .title = "Error", .message = "Please enter a valid name!" });
@@ -231,6 +239,12 @@ fn basic_gui_frame() !void {
         };
 
         vm.basic.has_ahci = has_ahci;
+
+        // Sanity checks
+        if (vm.processor.cpu == structs.Cpu.host and !vm.basic.has_acceleration) {
+            try gui.dialog(@src(), .{ .title = "Error", .message = "CPU model \"host\" requires hardware acceleration." });
+            return;
+        }
 
         // Write to file
         var file_name = try std.fmt.allocPrint(main.gpa, "{s}.ini", .{vm.basic.name});
@@ -277,10 +291,10 @@ fn processor_gui_frame() !void {
     if (try gui.button(@src(), "Save", .{ .expand = .horizontal, .color_style = .accent })) {
         // Write updated data to struct
         vm.processor.cpu = utils.string_to_cpu((utils.sanitize_output_text(&cpu, false) catch {
-            try gui.dialog(@src(), .{ .title = "Error", .message = "Please enter a valid CPU name!" });
+            try gui.dialog(@src(), .{ .title = "Error", .message = "Please enter a valid CPU model name!" });
             return;
         }).items) catch {
-            try gui.dialog(@src(), .{ .title = "Error", .message = "Please enter a valid CPU name!" });
+            try gui.dialog(@src(), .{ .title = "Error", .message = "Please enter a valid CPU model name!" });
             return;
         };
 
@@ -299,6 +313,12 @@ fn processor_gui_frame() !void {
             return;
         };
 
+        // Sanity checks
+        if (vm.processor.cpu == structs.Cpu.host and !vm.basic.has_acceleration) {
+            try gui.dialog(@src(), .{ .title = "Error", .message = "CPU model \"host\" requires hardware acceleration." });
+            return;
+        }
+
         // Write to file
         var file_name = try std.fmt.allocPrint(main.gpa, "{s}.ini", .{vm.basic.name});
         defer main.gpa.free(file_name);
@@ -312,7 +332,58 @@ fn processor_gui_frame() !void {
 
 fn network_gui_frame() !void {}
 
-fn graphics_gui_frame() !void {}
+fn graphics_gui_frame() !void {
+    option_index = 0;
+
+    try add_text_option("Display", &display);
+    try add_text_option("GPU", &gpu);
+    try add_bool_option("VGA emulation", &has_vga_emulation);
+    try add_bool_option("Graphics acceleration", &has_graphics_acceleration);
+
+    if (try gui.button(@src(), "Save", .{ .expand = .horizontal, .color_style = .accent })) {
+        // Write updated data to struct
+        vm.graphics.display = utils.string_to_display((utils.sanitize_output_text(&display, false) catch {
+            try gui.dialog(@src(), .{ .title = "Error", .message = "Please enter a valid display name!" });
+            return;
+        }).items) catch {
+            try gui.dialog(@src(), .{ .title = "Error", .message = "Please enter a valid display name!" });
+            return;
+        };
+
+        vm.graphics.gpu = utils.string_to_gpu((utils.sanitize_output_text(&gpu, false) catch {
+            try gui.dialog(@src(), .{ .title = "Error", .message = "Please enter a valid GPU model name!" });
+            return;
+        }).items) catch {
+            try gui.dialog(@src(), .{ .title = "Error", .message = "Please enter a valid GPU model name!" });
+            return;
+        };
+
+        vm.graphics.has_vga_emulation = has_vga_emulation;
+
+        vm.graphics.has_graphics_acceleration = has_graphics_acceleration;
+
+        // Sanity checks
+        if (vm.graphics.gpu == structs.Gpu.vga and !vm.graphics.has_vga_emulation) {
+            try gui.dialog(@src(), .{ .title = "Error", .message = "GPU model \"vga\" requires VGA emulation." });
+            return;
+        } else if (vm.graphics.gpu == structs.Gpu.vga and vm.graphics.has_graphics_acceleration) {
+            try gui.dialog(@src(), .{ .title = "Error", .message = "GPU model \"vga\" doesn't support graphics acceleration." });
+            return;
+        } else if (vm.graphics.gpu == structs.Gpu.qxl and vm.graphics.has_graphics_acceleration) {
+            try gui.dialog(@src(), .{ .title = "Error", .message = "GPU model \"qxl\" doesn't support graphics acceleration." });
+            return;
+        }
+
+        // Write to file
+        var file_name = try std.fmt.allocPrint(main.gpa, "{s}.ini", .{vm.basic.name});
+        defer main.gpa.free(file_name);
+
+        var file = try std.fs.cwd().createFile(file_name, .{});
+        defer file.close();
+
+        try ini.writeStruct(vm, file.writer());
+    }
+}
 
 fn audio_gui_frame() !void {}
 

@@ -46,8 +46,8 @@ pub fn main() !void {
     try virtual_machines_directory.setAsCwd();
 
     var backend = try Backend.init(.{
-        .width = 640,
-        .height = 480,
+        .width = 1024,
+        .height = 768,
         .vsync = true,
         .title = "ZigEmu",
     });

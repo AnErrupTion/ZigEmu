@@ -125,6 +125,43 @@ pub fn display_to_string(display: structs.Display) []const u8 {
     };
 }
 
+pub fn string_to_display(str: []const u8) ConversionError!structs.Display {
+    if (std.mem.eql(u8, str, "none")) {
+        return structs.Display.none;
+    } else if (std.mem.eql(u8, str, "sdl")) {
+        return structs.Display.sdl;
+    } else if (std.mem.eql(u8, str, "gtk")) {
+        return structs.Display.gtk;
+    } else if (std.mem.eql(u8, str, "spice-app")) {
+        return structs.Display.spice;
+    } else {
+        return ConversionError.CannotConvertInput;
+    }
+}
+
+pub fn gpu_to_string(gpu: structs.Gpu) []const u8 {
+    return switch (gpu) {
+        structs.Gpu.none => "none",
+        structs.Gpu.vga => "vga",
+        structs.Gpu.qxl => "qxl",
+        structs.Gpu.virtio => "virtio",
+    };
+}
+
+pub fn string_to_gpu(str: []const u8) ConversionError!structs.Gpu {
+    if (std.mem.eql(u8, str, "none")) {
+        return structs.Gpu.none;
+    } else if (std.mem.eql(u8, str, "vga")) {
+        return structs.Gpu.vga;
+    } else if (std.mem.eql(u8, str, "qxl")) {
+        return structs.Gpu.qxl;
+    } else if (std.mem.eql(u8, str, "virtio")) {
+        return structs.Gpu.virtio;
+    } else {
+        return ConversionError.CannotConvertInput;
+    }
+}
+
 pub fn drive_format_to_string(drive_format: structs.DriveFormat) []const u8 {
     return switch (drive_format) {
         structs.DriveFormat.raw => "raw",

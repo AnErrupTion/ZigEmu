@@ -109,7 +109,9 @@ pub fn gui_frame() !void {
                 .usb_type = structs.UsbType.ehci,
                 .has_ahci = true,
             },
-            .memory = .{ .ram = actual_ram },
+            .memory = .{
+                .ram = actual_ram,
+            },
             .processor = .{
                 .cpu = structs.Cpu.host,
                 .features = "",
