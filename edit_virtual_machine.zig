@@ -24,9 +24,17 @@ var features = std.mem.zeroes([1024]u8);
 var cores = std.mem.zeroes([16]u8);
 var threads = std.mem.zeroes([16]u8);
 
+var ram = std.mem.zeroes([32]u8);
+
 pub fn init() !void {
     try init_basic();
-    try init_cpu();
+    try init_memory();
+    try init_processor();
+    try init_network();
+    try init_graphics();
+    try init_audio();
+    try init_peripherals();
+    try init_drives();
 }
 
 pub fn gui_frame() !void {
@@ -49,25 +57,25 @@ pub fn gui_frame() !void {
         if (try gui.button(@src(), "Basic", .{ .expand = .horizontal })) {
             setting = 0;
         }
-        if (try gui.button(@src(), "Processor", .{ .expand = .horizontal })) {
+        if (try gui.button(@src(), "Memory", .{ .expand = .horizontal })) {
             setting = 1;
         }
-        if (try gui.button(@src(), "Memory", .{ .expand = .horizontal })) {
+        if (try gui.button(@src(), "Processor", .{ .expand = .horizontal })) {
             setting = 2;
         }
         if (try gui.button(@src(), "Network", .{ .expand = .horizontal })) {
             setting = 3;
         }
-        if (try gui.button(@src(), "Drives", .{ .expand = .horizontal })) {
+        if (try gui.button(@src(), "Graphics", .{ .expand = .horizontal })) {
             setting = 4;
         }
-        if (try gui.button(@src(), "Graphics", .{ .expand = .horizontal })) {
+        if (try gui.button(@src(), "Audio", .{ .expand = .horizontal })) {
             setting = 5;
         }
-        if (try gui.button(@src(), "Audio", .{ .expand = .horizontal })) {
+        if (try gui.button(@src(), "Peripherals", .{ .expand = .horizontal })) {
             setting = 6;
         }
-        if (try gui.button(@src(), "Peripherals", .{ .expand = .horizontal })) {
+        if (try gui.button(@src(), "Drives", .{ .expand = .horizontal })) {
             setting = 7;
         }
         if (try gui.button(@src(), "Command line", .{ .expand = .horizontal })) {
@@ -76,8 +84,6 @@ pub fn gui_frame() !void {
         if (try gui.button(@src(), "Run", .{ .expand = .horizontal, .color_style = .accent })) {
             var qemu_arguments = try qemu.get_arguments(vm);
             defer qemu_arguments.deinit();
-
-            std.debug.print("{s}\n", .{qemu_arguments.items});
 
             _ = std.ChildProcess.exec(.{ .argv = qemu_arguments.items, .allocator = main.gpa }) catch {
                 try gui.dialog(@src(), .{ .title = "Error", .message = "Unable to create a child process for QEMU." });
@@ -90,8 +96,36 @@ pub fn gui_frame() !void {
         var vbox = try gui.box(@src(), .vertical, .{ .expand = .both });
         defer vbox.deinit();
 
-        try basic_gui_frame();
-        try cpu_gui_frame();
+        switch (setting) {
+            0 => {
+                try basic_gui_frame();
+            },
+            1 => {
+                try memory_gui_frame();
+            },
+            2 => {
+                try processor_gui_frame();
+            },
+            3 => {
+                try network_gui_frame();
+            },
+            4 => {
+                try graphics_gui_frame();
+            },
+            5 => {
+                try audio_gui_frame();
+            },
+            6 => {
+                try peripherals_gui_frame();
+            },
+            7 => {
+                try drives_gui_frame();
+            },
+            8 => {
+                try command_line_gui_frame();
+            },
+            else => {},
+        }
     }
 }
 
@@ -110,7 +144,16 @@ fn init_basic() !void {
     has_ahci = vm.basic.has_ahci;
 }
 
-fn init_cpu() !void {
+fn init_memory() !void {
+    var ram_format = try std.fmt.allocPrint(main.gpa, "{d}", .{vm.memory.ram});
+    defer main.gpa.free(ram_format);
+
+    @memset(&ram, 0);
+
+    set_buffer(&ram, ram_format);
+}
+
+fn init_processor() !void {
     var cores_format = try std.fmt.allocPrint(main.gpa, "{d}", .{vm.processor.cores});
     defer main.gpa.free(cores_format);
 
@@ -128,11 +171,17 @@ fn init_cpu() !void {
     set_buffer(&threads, threads_format);
 }
 
-fn basic_gui_frame() !void {
-    if (setting != 0) {
-        return;
-    }
+fn init_network() !void {}
 
+fn init_graphics() !void {}
+
+fn init_audio() !void {}
+
+fn init_peripherals() !void {}
+
+fn init_drives() !void {}
+
+fn basic_gui_frame() !void {
     option_index = 0;
 
     try add_text_option("Name", &name);
@@ -194,11 +243,30 @@ fn basic_gui_frame() !void {
     }
 }
 
-fn cpu_gui_frame() !void {
-    if (setting != 1) {
-        return;
-    }
+fn memory_gui_frame() !void {
+    option_index = 0;
 
+    try add_text_option("RAM (in MiB)", &ram);
+
+    if (try gui.button(@src(), "Save", .{ .expand = .horizontal, .color_style = .accent })) {
+        // Write updated data to struct
+        vm.memory.ram = utils.sanitize_output_number(&ram) catch {
+            try gui.dialog(@src(), .{ .title = "Error", .message = "Please enter a valid amount of RAM!" });
+            return;
+        };
+
+        // Write to file
+        var file_name = try std.fmt.allocPrint(main.gpa, "{s}.ini", .{vm.basic.name});
+        defer main.gpa.free(file_name);
+
+        var file = try std.fs.cwd().createFile(file_name, .{});
+        defer file.close();
+
+        try ini.writeStruct(vm, file.writer());
+    }
+}
+
+fn processor_gui_frame() !void {
     option_index = 0;
 
     try add_text_option("CPU", &cpu);
@@ -240,6 +308,33 @@ fn cpu_gui_frame() !void {
 
         try ini.writeStruct(vm, file.writer());
     }
+}
+
+fn network_gui_frame() !void {}
+
+fn graphics_gui_frame() !void {}
+
+fn audio_gui_frame() !void {}
+
+fn peripherals_gui_frame() !void {}
+
+fn drives_gui_frame() !void {}
+
+fn command_line_gui_frame() !void {
+    var qemu_arguments = try qemu.get_arguments(vm);
+    defer qemu_arguments.deinit();
+
+    var arguments = std.ArrayList(u8).init(main.gpa);
+    defer arguments.deinit();
+
+    for (qemu_arguments.items) |arg| {
+        for (arg) |c| {
+            try arguments.append(c);
+        }
+        try arguments.append(' ');
+    }
+
+    try gui.textEntry(@src(), .{ .text = arguments.items }, .{ .expand = .both });
 }
 
 fn set_buffer(buffer: []u8, value: []const u8) void {

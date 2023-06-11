@@ -68,6 +68,8 @@ pub const Drive = struct {
     path: []const u8,
 };
 
+// TODO: PCI/USB host devices
+// TODO: Controllers? (more modular)
 pub const VirtualMachine = struct {
     basic: struct {
         name: []const u8,
