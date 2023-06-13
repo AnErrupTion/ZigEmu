@@ -25,7 +25,6 @@ pub fn get_arguments(vm: structs.VirtualMachine) !std.ArrayList([]const u8) {
     try list.append("-nodefaults");
 
     try list.append("-accel");
-    // TODO: Other accelerations (like WHPX on Windows)
     if (vm.basic.has_acceleration) {
         try list.append("kvm");
     } else {

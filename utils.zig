@@ -162,6 +162,46 @@ pub fn string_to_gpu(str: []const u8) ConversionError!structs.Gpu {
     }
 }
 
+pub fn keyboard_to_string(keyboard: structs.Keyboard) []const u8 {
+    return switch (keyboard) {
+        structs.Keyboard.none => "none",
+        structs.Keyboard.usb => "usb",
+        structs.Keyboard.virtio => "virtio",
+    };
+}
+
+pub fn string_to_keyboard(str: []const u8) ConversionError!structs.Keyboard {
+    if (std.mem.eql(u8, str, "none")) {
+        return structs.Keyboard.none;
+    } else if (std.mem.eql(u8, str, "usb")) {
+        return structs.Keyboard.usb;
+    } else if (std.mem.eql(u8, str, "virtio")) {
+        return structs.Keyboard.virtio;
+    } else {
+        return ConversionError.CannotConvertInput;
+    }
+}
+
+pub fn mouse_to_string(mouse: structs.Mouse) []const u8 {
+    return switch (mouse) {
+        structs.Mouse.none => "none",
+        structs.Mouse.usb => "usb",
+        structs.Mouse.virtio => "virtio",
+    };
+}
+
+pub fn string_to_mouse(str: []const u8) ConversionError!structs.Mouse {
+    if (std.mem.eql(u8, str, "none")) {
+        return structs.Mouse.none;
+    } else if (std.mem.eql(u8, str, "usb")) {
+        return structs.Mouse.usb;
+    } else if (std.mem.eql(u8, str, "virtio")) {
+        return structs.Mouse.virtio;
+    } else {
+        return ConversionError.CannotConvertInput;
+    }
+}
+
 pub fn drive_format_to_string(drive_format: structs.DriveFormat) []const u8 {
     return switch (drive_format) {
         structs.DriveFormat.raw => "raw",

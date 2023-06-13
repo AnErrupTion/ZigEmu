@@ -26,17 +26,16 @@ pub fn main() !void {
     virtual_machines = std.ArrayList(structs.VirtualMachine).init(gpa);
     defer virtual_machines.deinit();
 
-    var files = try std.fs.cwd().openIterableDir("VMs", .{});
-    defer files.close();
+    var directories = try std.fs.cwd().openIterableDir("VMs", .{});
+    defer directories.close();
 
-    var iterator = files.iterate();
+    var iterator = directories.iterate();
 
-    while (try iterator.next()) |file| {
-        if (!std.mem.endsWith(u8, file.name, ".ini")) {
-            continue;
-        }
+    while (try iterator.next()) |directory| {
+        var files = try virtual_machines_directory.openDir(directory.name, .{});
+        defer files.close();
 
-        var config = try virtual_machines_directory.readFileAlloc(gpa, file.name, 16 * 1024 * 1024); // TODO: Free?
+        var config = try files.readFileAlloc(gpa, "config.ini", 16 * 1024);
         var vm = try ini.readToStruct(structs.VirtualMachine, config);
 
         try permanent_buffers.arrays.append(config);
@@ -104,16 +103,12 @@ fn gui_frame() !void {
             var fw = try gui.popup(@src(), gui.Rect.fromPoint(gui.Point{ .x = r.x, .y = r.y + r.h }), .{});
             defer fw.deinit();
 
-            if (gui.themeGet() == &gui.Adwaita.dark) {
-                if (try gui.menuItemLabel(@src(), "Use Light Theme", false, .{}) != null) {
-                    gui.themeSet(&gui.Adwaita.light);
-                    gui.menuGet().?.close();
-                }
-            } else {
-                if (try gui.menuItemLabel(@src(), "Use Dark Theme", false, .{}) != null) {
-                    gui.themeSet(&gui.Adwaita.dark);
-                    gui.menuGet().?.close();
-                }
+            if (gui.themeGet() == &gui.Adwaita.dark and try gui.menuItemLabel(@src(), "Use Light Theme", false, .{}) != null) {
+                gui.themeSet(&gui.Adwaita.light);
+                gui.menuGet().?.close();
+            } else if (gui.themeGet() == &gui.Adwaita.light and try gui.menuItemLabel(@src(), "Use Dark Theme", false, .{}) != null) {
+                gui.themeSet(&gui.Adwaita.dark);
+                gui.menuGet().?.close();
             }
         }
     }

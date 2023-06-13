@@ -96,9 +96,12 @@ pub fn gui_frame() !void {
             };
         }
 
-        var disk_file = try std.fmt.allocPrint(main.gpa, "{s}.img", .{actual_name.items});
+        try std.fs.cwd().makeDir(actual_name.items);
 
-        try permanent_buffers.arrays.append(disk_file);
+        var vm_directory = try std.fs.cwd().openDir(actual_name.items, .{});
+        defer vm_directory.close();
+
+        try vm_directory.setAsCwd();
 
         const vm = structs.VirtualMachine{
             .basic = .{
@@ -135,7 +138,7 @@ pub fn gui_frame() !void {
                 .is_cdrom = false,
                 .bus = structs.DriveBus.sata,
                 .format = structs.DriveFormat.raw,
-                .path = disk_file,
+                .path = "disk.img",
             },
             .drive1 = boot_drive,
             .drive2 = .{
@@ -160,12 +163,7 @@ pub fn gui_frame() !void {
 
         try main.virtual_machines.append(vm);
 
-        try actual_name.append('.');
-        try actual_name.append('i');
-        try actual_name.append('n');
-        try actual_name.append('i');
-
-        var file = try std.fs.cwd().createFile(actual_name.items, .{});
+        var file = try std.fs.cwd().createFile("config.ini", .{});
         defer file.close();
 
         try ini.writeStruct(vm, file.writer());
@@ -179,7 +177,7 @@ pub fn gui_frame() !void {
             "-q",
             "-f",
             "raw",
-            disk_file,
+            "disk.img",
             disk_size,
         };
 
@@ -187,6 +185,8 @@ pub fn gui_frame() !void {
             try gui.dialog(@src(), .{ .title = "Error", .message = "Unable to create a child process for the QEMU image creation." });
             return;
         };
+
+        try main.virtual_machines_directory.setAsCwd();
 
         show = false;
     }

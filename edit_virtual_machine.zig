@@ -9,6 +9,9 @@ const qemu = @import("qemu.zig");
 pub var vm: structs.VirtualMachine = undefined;
 pub var show = false;
 
+var vm_directory: std.fs.Dir = undefined;
+var initialized = false;
+
 var setting: u64 = 0;
 var option_index: u64 = 0;
 
@@ -31,7 +34,15 @@ var gpu = std.mem.zeroes([16]u8);
 var has_vga_emulation = false;
 var has_graphics_acceleration = false;
 
+var keyboard = std.mem.zeroes([8]u8);
+var mouse = std.mem.zeroes([8]u8);
+var has_mouse_absolute_pointing = false;
+
 pub fn init() !void {
+    vm_directory = try std.fs.cwd().openDir(vm.basic.name, .{});
+
+    try vm_directory.setAsCwd();
+
     try init_basic();
     try init_memory();
     try init_processor();
@@ -40,10 +51,23 @@ pub fn init() !void {
     try init_audio();
     try init_peripherals();
     try init_drives();
+
+    initialized = true;
+}
+
+pub fn deinit() !void {
+    try main.virtual_machines_directory.setAsCwd();
+
+    vm_directory.close();
 }
 
 pub fn gui_frame() !void {
     if (!show) {
+        if (initialized) {
+            try deinit();
+            initialized = false;
+        }
+
         return;
     }
 
@@ -191,7 +215,15 @@ fn init_graphics() !void {
 
 fn init_audio() !void {}
 
-fn init_peripherals() !void {}
+fn init_peripherals() !void {
+    @memset(&keyboard, 0);
+    @memset(&mouse, 0);
+
+    set_buffer(&keyboard, utils.keyboard_to_string(vm.peripherals.keyboard));
+    set_buffer(&mouse, utils.mouse_to_string(vm.peripherals.mouse));
+
+    has_mouse_absolute_pointing = vm.peripherals.has_mouse_absolute_pointing;
+}
 
 fn init_drives() !void {}
 
@@ -244,16 +276,16 @@ fn basic_gui_frame() !void {
         if (vm.processor.cpu == structs.Cpu.host and !vm.basic.has_acceleration) {
             try gui.dialog(@src(), .{ .title = "Error", .message = "CPU model \"host\" requires hardware acceleration." });
             return;
+        } else if (vm.basic.usb_type == structs.UsbType.none and vm.peripherals.keyboard == structs.Keyboard.usb) {
+            try gui.dialog(@src(), .{ .title = "Error", .message = "Keyboard model \"usb\" requires a USB controller." });
+            return;
+        } else if (vm.basic.usb_type == structs.UsbType.none and vm.peripherals.mouse == structs.Mouse.usb) {
+            try gui.dialog(@src(), .{ .title = "Error", .message = "Mouse model \"usb\" requires a USB controller." });
+            return;
         }
 
         // Write to file
-        var file_name = try std.fmt.allocPrint(main.gpa, "{s}.ini", .{vm.basic.name});
-        defer main.gpa.free(file_name);
-
-        var file = try std.fs.cwd().openFile(file_name, .{ .mode = .read_write });
-        defer file.close();
-
-        try ini.writeStruct(vm, file.writer());
+        try save_changes();
     }
 }
 
@@ -270,13 +302,7 @@ fn memory_gui_frame() !void {
         };
 
         // Write to file
-        var file_name = try std.fmt.allocPrint(main.gpa, "{s}.ini", .{vm.basic.name});
-        defer main.gpa.free(file_name);
-
-        var file = try std.fs.cwd().createFile(file_name, .{});
-        defer file.close();
-
-        try ini.writeStruct(vm, file.writer());
+        try save_changes();
     }
 }
 
@@ -320,13 +346,7 @@ fn processor_gui_frame() !void {
         }
 
         // Write to file
-        var file_name = try std.fmt.allocPrint(main.gpa, "{s}.ini", .{vm.basic.name});
-        defer main.gpa.free(file_name);
-
-        var file = try std.fs.cwd().createFile(file_name, .{});
-        defer file.close();
-
-        try ini.writeStruct(vm, file.writer());
+        try save_changes();
     }
 }
 
@@ -375,19 +395,52 @@ fn graphics_gui_frame() !void {
         }
 
         // Write to file
-        var file_name = try std.fmt.allocPrint(main.gpa, "{s}.ini", .{vm.basic.name});
-        defer main.gpa.free(file_name);
-
-        var file = try std.fs.cwd().createFile(file_name, .{});
-        defer file.close();
-
-        try ini.writeStruct(vm, file.writer());
+        try save_changes();
     }
 }
 
 fn audio_gui_frame() !void {}
 
-fn peripherals_gui_frame() !void {}
+fn peripherals_gui_frame() !void {
+    option_index = 0;
+
+    try add_text_option("Keyboard", &keyboard);
+    try add_text_option("Mouse", &mouse);
+    try add_bool_option("Absolute mouse pointing", &has_mouse_absolute_pointing);
+
+    if (try gui.button(@src(), "Save", .{ .expand = .horizontal, .color_style = .accent })) {
+        // Write updated data to struct
+        vm.peripherals.keyboard = utils.string_to_keyboard((utils.sanitize_output_text(&keyboard, false) catch {
+            try gui.dialog(@src(), .{ .title = "Error", .message = "Please enter a valid keyboard model name!" });
+            return;
+        }).items) catch {
+            try gui.dialog(@src(), .{ .title = "Error", .message = "Please enter a valid keyboard model name!" });
+            return;
+        };
+
+        vm.peripherals.mouse = utils.string_to_mouse((utils.sanitize_output_text(&mouse, false) catch {
+            try gui.dialog(@src(), .{ .title = "Error", .message = "Please enter a valid mouse model name!" });
+            return;
+        }).items) catch {
+            try gui.dialog(@src(), .{ .title = "Error", .message = "Please enter a valid mouse model name!" });
+            return;
+        };
+
+        vm.peripherals.has_mouse_absolute_pointing = has_mouse_absolute_pointing;
+
+        // Sanity checks
+        if (vm.peripherals.keyboard == structs.Keyboard.usb and vm.basic.usb_type == structs.UsbType.none) {
+            try gui.dialog(@src(), .{ .title = "Error", .message = "Keyboard model \"usb\" requires a USB controller." });
+            return;
+        } else if (vm.peripherals.mouse == structs.Mouse.usb and vm.basic.usb_type == structs.UsbType.none) {
+            try gui.dialog(@src(), .{ .title = "Error", .message = "Mouse model \"usb\" requires a USB controller." });
+            return;
+        }
+
+        // Write to file
+        try save_changes();
+    }
+}
 
 fn drives_gui_frame() !void {}
 
@@ -406,6 +459,14 @@ fn command_line_gui_frame() !void {
     }
 
     try gui.textEntry(@src(), .{ .text = arguments.items }, .{ .expand = .both });
+}
+
+fn save_changes() !void {
+    // TODO: If we change the VM name, we need to change the directory name as well
+    var file = try std.fs.cwd().createFile("config.ini", .{});
+    defer file.close();
+
+    try ini.writeStruct(vm, file.writer());
 }
 
 fn set_buffer(buffer: []u8, value: []const u8) void {
