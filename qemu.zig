@@ -5,7 +5,7 @@ const main = @import("main.zig");
 const utils = @import("utils.zig");
 const permanent_buffers = @import("permanent_buffers.zig");
 
-pub fn get_arguments(vm: structs.VirtualMachine) !std.ArrayList([]const u8) {
+pub fn get_arguments(vm: structs.VirtualMachine, drives: []structs.Drive) !std.ArrayList([]const u8) {
     var list = std.ArrayList([]const u8).init(main.gpa);
 
     var qemu_name = try std.fmt.allocPrint(main.gpa, "qemu-system-{s}", .{utils.architecture_to_string(vm.basic.architecture)});
@@ -140,79 +140,53 @@ pub fn get_arguments(vm: structs.VirtualMachine) !std.ArrayList([]const u8) {
         }
     }
 
-    if (!std.mem.eql(u8, vm.drive0.path, "")) {
-        var drive = try std.fmt.allocPrint(main.gpa, "if=none,file={s},format={s},id=drive0", .{ vm.drive0.path, utils.drive_format_to_string(vm.drive0.format) });
+    for (drives, 0..) |drive, i| {
+        if (std.mem.eql(u8, drive.path, "")) {
+            continue;
+        }
 
-        try permanent_buffers.arrays.append(drive);
+        var disk = try std.fmt.allocPrint(main.gpa, "if=none,file={s},format={s},id=drive{d}", .{ drive.path, utils.drive_format_to_string(drive.format), i });
+
+        try permanent_buffers.arrays.append(disk);
 
         try list.append("-drive");
-        try list.append(drive);
+        try list.append(disk);
 
-        if (vm.drive0.bus == structs.DriveBus.ide) {
+        if (drive.bus == structs.DriveBus.ide) {
+            var bus = if (drive.is_cdrom) try std.fmt.allocPrint(main.gpa, "ide-cd,drive=drive{d}", .{i}) else try std.fmt.allocPrint(main.gpa, "ide-hd,drive=drive{d}", .{i});
+
+            try permanent_buffers.arrays.append(bus);
+
             try list.append("-device");
-            if (vm.drive0.is_cdrom) {
-                try list.append("ide-cd,drive=drive0");
-            } else {
-                try list.append("ide-hd,drive=drive0");
-            }
-        } else if (vm.drive0.bus == structs.DriveBus.sata) {
+            try list.append(bus);
+        } else if (drive.bus == structs.DriveBus.sata) {
+            var bus = if (drive.is_cdrom) try std.fmt.allocPrint(main.gpa, "ide-cd,drive=drive{d},bus=ahci.0", .{i}) else try std.fmt.allocPrint(main.gpa, "ide-hd,drive=drive{d},bus=ahci.0", .{i});
+
+            try permanent_buffers.arrays.append(bus);
+
             try list.append("-device");
-            if (vm.drive0.is_cdrom) {
-                try list.append("ide-cd,drive=drive0,bus=ahci.0");
-            } else {
-                try list.append("ide-hd,drive=drive0,bus=ahci.0");
-            }
-        } else if (vm.drive0.bus == structs.DriveBus.usb) {
+            try list.append(bus);
+        } else if (drive.bus == structs.DriveBus.usb) {
             if (vm.basic.usb_type == structs.UsbType.none) unreachable;
-            if (vm.drive0.is_cdrom) unreachable;
+            if (drive.is_cdrom) unreachable;
+
+            var bus = try std.fmt.allocPrint(main.gpa, "usb-storage,drive=drive{d},bus=usb.0", .{i});
+
+            try permanent_buffers.arrays.append(bus);
 
             try list.append("-device");
-            try list.append("usb-storage,drive=drive0,bus=usb.0");
-        } else if (vm.drive0.bus == structs.DriveBus.virtio) {
-            if (vm.drive0.is_cdrom) unreachable;
+            try list.append(bus);
+        } else if (drive.bus == structs.DriveBus.virtio) {
+            if (drive.is_cdrom) unreachable;
+
+            var bus = try std.fmt.allocPrint(main.gpa, "virtio-blk-pci,drive=drive{d}", .{i});
+
+            try permanent_buffers.arrays.append(bus);
 
             try list.append("-device");
-            try list.append("virtio-blk-pci,drive=drive0");
+            try list.append(bus);
         }
     }
-
-    if (!std.mem.eql(u8, vm.drive1.path, "")) {
-        var drive = try std.fmt.allocPrint(main.gpa, "if=none,file={s},format={s},id=drive1", .{ vm.drive1.path, utils.drive_format_to_string(vm.drive1.format) });
-
-        try permanent_buffers.arrays.append(drive);
-
-        try list.append("-drive");
-        try list.append(drive);
-
-        if (vm.drive1.bus == structs.DriveBus.ide) {
-            try list.append("-device");
-            if (vm.drive1.is_cdrom) {
-                try list.append("ide-cd,drive=drive1");
-            } else {
-                try list.append("ide-hd,drive=drive1");
-            }
-        } else if (vm.drive1.bus == structs.DriveBus.sata) {
-            try list.append("-device");
-            if (vm.drive1.is_cdrom) {
-                try list.append("ide-cd,drive=drive1,bus=ahci.0");
-            } else {
-                try list.append("ide-hd,drive=drive1,bus=ahci.0");
-            }
-        } else if (vm.drive1.bus == structs.DriveBus.usb) {
-            if (vm.basic.usb_type == structs.UsbType.none) unreachable;
-            if (vm.drive1.is_cdrom) unreachable;
-
-            try list.append("-device");
-            try list.append("usb-storage,drive=drive1,bus=usb.0");
-        } else if (vm.drive1.bus == structs.DriveBus.virtio) {
-            if (vm.drive1.is_cdrom) unreachable;
-
-            try list.append("-device");
-            try list.append("virtio-blk-pci,drive=drive1");
-        }
-    }
-
-    // TODO: Other disks (we should just find another way...)
 
     return list;
 }

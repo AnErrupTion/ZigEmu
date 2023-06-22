@@ -9,6 +9,8 @@ const qemu = @import("qemu.zig");
 pub var vm: structs.VirtualMachine = undefined;
 pub var show = false;
 
+var drives: []structs.Drive = undefined;
+
 var vm_directory: std.fs.Dir = undefined;
 var initialized = false;
 
@@ -38,7 +40,21 @@ var keyboard = std.mem.zeroes([8]u8);
 var mouse = std.mem.zeroes([8]u8);
 var has_mouse_absolute_pointing = false;
 
+var drives_options = std.mem.zeroes([5]struct {
+    is_cdrom: bool,
+    bus: [8]u8,
+    format: [8]u8,
+    path: [512]u8,
+});
+
 pub fn init() !void {
+    drives = try main.gpa.alloc(structs.Drive, 5);
+    drives[0] = vm.drive0;
+    drives[1] = vm.drive1;
+    drives[2] = vm.drive2;
+    drives[3] = vm.drive3;
+    drives[4] = vm.drive4;
+
     vm_directory = try std.fs.cwd().openDir(vm.basic.name, .{});
 
     try vm_directory.setAsCwd();
@@ -59,6 +75,8 @@ pub fn deinit() !void {
     try main.virtual_machines_directory.setAsCwd();
 
     vm_directory.close();
+
+    main.gpa.free(drives);
 }
 
 pub fn gui_frame() !void {
@@ -111,7 +129,7 @@ pub fn gui_frame() !void {
             setting = 8;
         }
         if (try gui.button(@src(), "Run", .{ .expand = .horizontal, .color_style = .accent })) {
-            var qemu_arguments = try qemu.get_arguments(vm);
+            var qemu_arguments = try qemu.get_arguments(vm, drives);
             defer qemu_arguments.deinit();
 
             _ = std.ChildProcess.exec(.{ .argv = qemu_arguments.items, .allocator = main.gpa }) catch {
@@ -225,7 +243,21 @@ fn init_peripherals() !void {
     has_mouse_absolute_pointing = vm.peripherals.has_mouse_absolute_pointing;
 }
 
-fn init_drives() !void {}
+fn init_drives() !void {
+    for (drives, 0..) |drive, i| {
+        var drive_options = &drives_options[i];
+
+        @memset(&drive_options.bus, 0);
+        @memset(&drive_options.format, 0);
+        @memset(&drive_options.path, 0);
+
+        set_buffer(&drive_options.bus, utils.drive_bus_to_string(drive.bus));
+        set_buffer(&drive_options.format, utils.drive_format_to_string(drive.format));
+        set_buffer(&drive_options.path, drive.path);
+
+        drive_options.*.is_cdrom = drive.is_cdrom;
+    }
+}
 
 fn basic_gui_frame() !void {
     option_index = 0;
@@ -445,15 +477,24 @@ fn peripherals_gui_frame() !void {
 fn drives_gui_frame() !void {
     option_index = 0;
 
-    try add_drive_options(vm.drive0);
-    try add_drive_options(vm.drive1);
-    try add_drive_options(vm.drive2);
-    try add_drive_options(vm.drive3);
-    try add_drive_options(vm.drive4);
+    var scroll = try gui.scrollArea(@src(), .{}, .{ .expand = .both, .color_style = .window });
+    defer scroll.deinit();
+
+    for (drives, 0..) |drive, i| {
+        _ = drive;
+        var drive_options = &drives_options[i];
+
+        try add_bool_option("CD-ROM", &drive_options.is_cdrom);
+        try add_text_option("Bus", &drive_options.bus);
+        try add_text_option("Format", &drive_options.format);
+        try add_text_option("Path", &drive_options.path);
+    }
+
+    if (try gui.button(@src(), "Save", .{ .expand = .horizontal, .color_style = .accent })) {}
 }
 
 fn command_line_gui_frame() !void {
-    var qemu_arguments = try qemu.get_arguments(vm);
+    var qemu_arguments = try qemu.get_arguments(vm, drives);
     defer qemu_arguments.deinit();
 
     var arguments = std.ArrayList(u8).init(main.gpa);
@@ -467,12 +508,6 @@ fn command_line_gui_frame() !void {
     }
 
     try gui.textEntry(@src(), .{ .text = arguments.items }, .{ .expand = .both });
-}
-
-fn add_drive_options(drive: structs.Drive) !void {
-    _ = drive;
-
-    option_index += 1;
 }
 
 fn save_changes() !void {

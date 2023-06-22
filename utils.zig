@@ -202,6 +202,15 @@ pub fn string_to_mouse(str: []const u8) ConversionError!structs.Mouse {
     }
 }
 
+pub fn drive_bus_to_string(drive_bus: structs.DriveBus) []const u8 {
+    return switch (drive_bus) {
+        structs.DriveBus.usb => "usb",
+        structs.DriveBus.ide => "ide",
+        structs.DriveBus.sata => "sata",
+        structs.DriveBus.virtio => "virtio",
+    };
+}
+
 pub fn drive_format_to_string(drive_format: structs.DriveFormat) []const u8 {
     return switch (drive_format) {
         structs.DriveFormat.raw => "raw",
