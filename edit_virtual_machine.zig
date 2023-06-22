@@ -445,11 +445,11 @@ fn peripherals_gui_frame() !void {
 fn drives_gui_frame() !void {
     option_index = 0;
 
-    add_drive_options(vm.drive0);
-    add_drive_options(vm.drive1);
-    add_drive_options(vm.drive2);
-    add_drive_options(vm.drive3);
-    add_drive_options(vm.drive4);
+    try add_drive_options(vm.drive0);
+    try add_drive_options(vm.drive1);
+    try add_drive_options(vm.drive2);
+    try add_drive_options(vm.drive3);
+    try add_drive_options(vm.drive4);
 }
 
 fn command_line_gui_frame() !void {
