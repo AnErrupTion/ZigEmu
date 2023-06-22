@@ -1,29 +1,8 @@
 const std = @import("std");
-const Pkg = std.build.Pkg;
-
-const Packages = struct {
-    // Declared here because submodule may not be cloned at the time build.zig runs.
-    const zmath = std.build.Pkg{
-        .name = "zmath",
-        .source = .{ .path = "libs/zmath/src/zmath.zig" },
-    };
-};
 
 pub fn build(b: *std.build.Builder) !void {
     const target = b.standardTargetOptions(.{});
     const optimize = b.standardOptimizeOption(.{});
-
-    const gui_mod = b.addModule("gui", .{
-        .source_file = .{ .path = "gui/gui.zig" },
-        .dependencies = &.{},
-    });
-
-    const sdl_mod = b.addModule("SDLBackend", .{
-        .source_file = .{ .path = "gui/SDLBackend.zig" },
-        .dependencies = &.{
-            .{ .name = "gui", .module = gui_mod },
-        },
-    });
 
     const exe = b.addExecutable(.{
         .name = "ZigEmu",
@@ -32,13 +11,15 @@ pub fn build(b: *std.build.Builder) !void {
         .optimize = optimize,
     });
 
-    exe.addModule("gui", gui_mod);
-    exe.addModule("SDLBackend", sdl_mod);
-    const freetype_dep = b.dependency("freetype", .{
-        .target = target,
-        .optimize = optimize,
-    });
-    exe.linkLibrary(freetype_dep.artifact("freetype"));
+    const ini = b.dependency("ini", .{});
+    exe.addModule("ini", ini.module("ini"));
+
+    const gui = b.dependency("gui", .{ .target = target, .optimize = optimize });
+    exe.addModule("gui", gui.module("gui"));
+    exe.addModule("SDLBackend", gui.module("SDLBackend"));
+
+    const freetype = gui.builder.dependency("freetype", .{ .target = target, .optimize = optimize });
+    exe.linkLibrary(freetype.artifact("freetype"));
 
     exe.linkSystemLibrary("SDL2");
     exe.linkLibC();

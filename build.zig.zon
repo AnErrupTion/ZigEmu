@@ -1,10 +1,14 @@
 .{
-    .name = "gui",
-    .version = "0.0.1",
+    .name = "ZigEmu",
+    .version = "1.0.0",
     .dependencies = .{
-        .freetype = .{
-            .url = "https://github.com/david-vanderson/freetype/archive/09ee107f41722d14a55f1e93699d13502cbeee7d.tar.gz",
-            .hash = "12206093916f783d7b915d8aeb73c83ff26d70f4cd83345e156148353029496522cd",
+        .gui = .{
+            .url = "https://github.com/david-vanderson/gui/archive/7b672b16501956fb78ddd7f6f802df13c39fabd1.tar.gz",
+            .hash = "12201c0a8a7af0718699eb8424f0ea6f332582fd92e44e61d0d9bce8c411cd49d8fd",
+        },
+        .ini = .{
+            .url = "https://github.com/AnErrupTion/zig-ini/archive/a40f3cae04939de0d795812a73633e0563cf3132.tar.gz",
+            .hash = "1220b39fc35714d235fd9633422f5ba3c4aba44f1ecaf29cf91515963f0b08a3da89",
         },
     },
 }

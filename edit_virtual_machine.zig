@@ -1,7 +1,7 @@
 const std = @import("std");
 const gui = @import("gui");
+const ini = @import("ini");
 const structs = @import("structs.zig");
-const ini = @import("ini.zig");
 const main = @import("main.zig");
 const utils = @import("utils.zig");
 const qemu = @import("qemu.zig");
@@ -442,7 +442,15 @@ fn peripherals_gui_frame() !void {
     }
 }
 
-fn drives_gui_frame() !void {}
+fn drives_gui_frame() !void {
+    option_index = 0;
+
+    add_drive_options(vm.drive0);
+    add_drive_options(vm.drive1);
+    add_drive_options(vm.drive2);
+    add_drive_options(vm.drive3);
+    add_drive_options(vm.drive4);
+}
 
 fn command_line_gui_frame() !void {
     var qemu_arguments = try qemu.get_arguments(vm);
@@ -459,6 +467,12 @@ fn command_line_gui_frame() !void {
     }
 
     try gui.textEntry(@src(), .{ .text = arguments.items }, .{ .expand = .both });
+}
+
+fn add_drive_options(drive: structs.Drive) !void {
+    _ = drive;
+
+    option_index += 1;
 }
 
 fn save_changes() !void {

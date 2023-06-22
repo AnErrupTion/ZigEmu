@@ -1,4 +1,5 @@
 const std = @import("std");
+const builtin = @import("builtin");
 const structs = @import("structs.zig");
 const main = @import("main.zig");
 const utils = @import("utils.zig");
@@ -26,7 +27,13 @@ pub fn get_arguments(vm: structs.VirtualMachine) !std.ArrayList([]const u8) {
 
     try list.append("-accel");
     if (vm.basic.has_acceleration) {
-        try list.append("kvm");
+        if (builtin.os.tag == .windows) {
+            try list.append("whpx");
+        } else if (builtin.os.tag == .macos) {
+            try list.append("hvf");
+        } else {
+            try list.append("kvm");
+        }
     } else {
         try list.append("tcg");
     }
