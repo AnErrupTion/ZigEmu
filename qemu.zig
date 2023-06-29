@@ -61,13 +61,13 @@ pub fn get_arguments(vm: structs.VirtualMachine, drives: []*structs.Drive) !std.
     try list.append("-display");
     try list.append(utils.display_to_string(vm.graphics.display));
 
-    if (vm.basic.usb_type != structs.UsbType.none) {
+    if (vm.basic.usb_type != .none) {
         var usb = try std.fmt.allocPrint(main.gpa, "{s},bus={s}.0,id=usb", .{
             switch (vm.basic.usb_type) {
-                structs.UsbType.ohci => "pci-ohci",
-                structs.UsbType.uhci => "piix3-usb-uhci",
-                structs.UsbType.ehci => "usb-ehci",
-                structs.UsbType.xhci => "qemu-xhci",
+                .ohci => "pci-ohci",
+                .uhci => "piix3-usb-uhci",
+                .ehci => "usb-ehci",
+                .xhci => "qemu-xhci",
                 else => unreachable,
             },
             pci_bus_type,
@@ -88,10 +88,10 @@ pub fn get_arguments(vm: structs.VirtualMachine, drives: []*structs.Drive) !std.
         try list.append(ahci);
     }
 
-    if (vm.graphics.gpu != structs.Gpu.none) {
+    if (vm.graphics.gpu != .none) {
         try list.append("-device");
 
-        if (vm.graphics.gpu == structs.Gpu.qxl) {
+        if (vm.graphics.gpu == .qxl) {
             if (vm.graphics.has_graphics_acceleration) unreachable;
 
             var qxl = try std.fmt.allocPrint(main.gpa, "{s},bus={s}.0", .{ if (vm.graphics.has_vga_emulation) "qxl-vga" else "qxl", pci_bus_type });
@@ -99,7 +99,7 @@ pub fn get_arguments(vm: structs.VirtualMachine, drives: []*structs.Drive) !std.
             try permanent_buffers.arrays.append(qxl);
 
             try list.append(qxl);
-        } else if (vm.graphics.gpu == structs.Gpu.vga) {
+        } else if (vm.graphics.gpu == .vga) {
             if (vm.graphics.has_graphics_acceleration) unreachable;
             if (!vm.graphics.has_vga_emulation) unreachable;
 
@@ -108,7 +108,7 @@ pub fn get_arguments(vm: structs.VirtualMachine, drives: []*structs.Drive) !std.
             try permanent_buffers.arrays.append(vga);
 
             try list.append(vga);
-        } else if (vm.graphics.gpu == structs.Gpu.vmware) {
+        } else if (vm.graphics.gpu == .vmware) {
             if (vm.graphics.has_graphics_acceleration) unreachable;
             if (!vm.graphics.has_vga_emulation) unreachable;
 
@@ -117,7 +117,7 @@ pub fn get_arguments(vm: structs.VirtualMachine, drives: []*structs.Drive) !std.
             try permanent_buffers.arrays.append(vmware);
 
             try list.append(vmware);
-        } else if (vm.graphics.gpu == structs.Gpu.virtio) {
+        } else if (vm.graphics.gpu == .virtio) {
             var virtio_gpu_type = if (vm.graphics.has_vga_emulation and vm.graphics.has_graphics_acceleration) "vga-gl" else if (vm.graphics.has_vga_emulation and !vm.graphics.has_graphics_acceleration) "vga" else if (!vm.graphics.has_vga_emulation and vm.graphics.has_graphics_acceleration) "gpu-gl" else "gpu";
             var virtio = try std.fmt.allocPrint(main.gpa, "virtio-{s},bus={s}.0", .{ virtio_gpu_type, pci_bus_type });
 
@@ -127,13 +127,13 @@ pub fn get_arguments(vm: structs.VirtualMachine, drives: []*structs.Drive) !std.
         }
     }
 
-    if (vm.audio.host_device != structs.HostDevice.none) {
+    if (vm.audio.host_device != .none) {
         switch (vm.audio.host_device) {
-            structs.HostDevice.alsa => {
+            .alsa => {
                 try list.append("-audiodev");
                 try list.append("alsa,id=hostdev");
             },
-            structs.HostDevice.pulseaudio => {
+            .pulseaudio => {
                 try list.append("-audiodev");
                 try list.append("pa,id=hostdev");
             },
@@ -141,21 +141,21 @@ pub fn get_arguments(vm: structs.VirtualMachine, drives: []*structs.Drive) !std.
         }
 
         switch (vm.audio.sound) {
-            structs.Sound.sb16 => {
+            .sb16 => {
                 if (vm.audio.has_input) unreachable;
                 if (!vm.audio.has_output) unreachable;
 
                 try list.append("-device");
                 try list.append("sb16,audiodev=hostdev");
             },
-            structs.Sound.ac97 => {
+            .ac97 => {
                 if (vm.audio.has_input) unreachable;
                 if (!vm.audio.has_output) unreachable;
 
                 try list.append("-device");
                 try list.append("AC97,audiodev=hostdev");
             },
-            structs.Sound.ich6 => {
+            .ich6 => {
                 var sound = try std.fmt.allocPrint(main.gpa, "intel-hda,bus={s}.0,id=hda", .{pci_bus_type});
 
                 try permanent_buffers.arrays.append(sound);
@@ -174,7 +174,7 @@ pub fn get_arguments(vm: structs.VirtualMachine, drives: []*structs.Drive) !std.
                     try list.append("hda-input,audiodev=hostdev,bus=hda.0");
                 }
             },
-            structs.Sound.ich9 => {
+            .ich9 => {
                 var sound = try std.fmt.allocPrint(main.gpa, "ich9-intel-hda,bus={s}.0,id=hda", .{pci_bus_type});
 
                 try permanent_buffers.arrays.append(sound);
@@ -193,10 +193,10 @@ pub fn get_arguments(vm: structs.VirtualMachine, drives: []*structs.Drive) !std.
                     try list.append("hda-input,audiodev=hostdev,bus=hda.0");
                 }
             },
-            structs.Sound.usb => {
+            .usb => {
                 if (vm.audio.has_input) unreachable;
                 if (!vm.audio.has_output) unreachable;
-                if (vm.basic.usb_type == structs.UsbType.none) unreachable;
+                if (vm.basic.usb_type == .none) unreachable;
 
                 try list.append("-device");
                 try list.append("usb-audio,audiodev=hostdev,bus=usb.0");
@@ -204,15 +204,15 @@ pub fn get_arguments(vm: structs.VirtualMachine, drives: []*structs.Drive) !std.
         }
     }
 
-    if (vm.peripherals.keyboard != structs.Keyboard.none) {
+    if (vm.peripherals.keyboard != .none) {
         switch (vm.peripherals.keyboard) {
-            structs.Keyboard.usb => {
-                if (vm.basic.usb_type == structs.UsbType.none) unreachable;
+            .usb => {
+                if (vm.basic.usb_type == .none) unreachable;
 
                 try list.append("-device");
                 try list.append("usb-kbd,bus=usb.0");
             },
-            structs.Keyboard.virtio => {
+            .virtio => {
                 var keyboard = try std.fmt.allocPrint(main.gpa, "virtio-keyboard-pci,bus={s}.0", .{pci_bus_type});
 
                 try permanent_buffers.arrays.append(keyboard);
@@ -224,16 +224,16 @@ pub fn get_arguments(vm: structs.VirtualMachine, drives: []*structs.Drive) !std.
         }
     }
 
-    if (vm.peripherals.mouse != structs.Mouse.none) {
+    if (vm.peripherals.mouse != .none) {
         var mouse: []u8 = undefined;
 
         switch (vm.peripherals.mouse) {
-            structs.Mouse.usb => {
-                if (vm.basic.usb_type == structs.UsbType.none) unreachable;
+            .usb => {
+                if (vm.basic.usb_type == .none) unreachable;
 
                 mouse = try std.fmt.allocPrint(main.gpa, "{s},bus=usb.0", .{if (vm.peripherals.has_mouse_absolute_pointing) "usb-tablet" else "usb-mouse"});
             },
-            structs.Mouse.virtio => {
+            .virtio => {
                 mouse = try std.fmt.allocPrint(main.gpa, "{s},bus={s}.0", .{ if (vm.peripherals.has_mouse_absolute_pointing) "virtio-tablet-pci" else "virtio-mouse-pci", pci_bus_type });
             },
             else => unreachable,
@@ -258,7 +258,7 @@ pub fn get_arguments(vm: structs.VirtualMachine, drives: []*structs.Drive) !std.
         try list.append(disk);
 
         switch (drive.bus) {
-            structs.DriveBus.ide => {
+            .ide => {
                 var bus = if (drive.is_cdrom) try std.fmt.allocPrint(main.gpa, "ide-cd,drive=drive{d}", .{i}) else try std.fmt.allocPrint(main.gpa, "ide-hd,drive=drive{d}", .{i});
 
                 try permanent_buffers.arrays.append(bus);
@@ -266,7 +266,7 @@ pub fn get_arguments(vm: structs.VirtualMachine, drives: []*structs.Drive) !std.
                 try list.append("-device");
                 try list.append(bus);
             },
-            structs.DriveBus.sata => {
+            .sata => {
                 var bus = if (drive.is_cdrom) try std.fmt.allocPrint(main.gpa, "ide-cd,drive=drive{d},bus=ahci.{d}", .{ i, ahci_bus }) else try std.fmt.allocPrint(main.gpa, "ide-hd,drive=drive{d},bus=ahci.{d}", .{ i, ahci_bus });
 
                 ahci_bus += 1;
@@ -276,8 +276,8 @@ pub fn get_arguments(vm: structs.VirtualMachine, drives: []*structs.Drive) !std.
                 try list.append("-device");
                 try list.append(bus);
             },
-            structs.DriveBus.usb => {
-                if (vm.basic.usb_type == structs.UsbType.none) unreachable;
+            .usb => {
+                if (vm.basic.usb_type == .none) unreachable;
                 if (drive.is_cdrom) unreachable;
 
                 var bus = try std.fmt.allocPrint(main.gpa, "usb-storage,drive=drive{d},bus=usb.0", .{i});
@@ -287,7 +287,7 @@ pub fn get_arguments(vm: structs.VirtualMachine, drives: []*structs.Drive) !std.
                 try list.append("-device");
                 try list.append(bus);
             },
-            structs.DriveBus.virtio => {
+            .virtio => {
                 if (drive.is_cdrom) unreachable;
 
                 var bus = try std.fmt.allocPrint(main.gpa, "virtio-blk-pci,drive=drive{d},bus={s}.0", .{ i, pci_bus_type });

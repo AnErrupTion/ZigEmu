@@ -319,13 +319,13 @@ fn basic_gui_frame() !void {
         vm.basic.has_ahci = has_ahci;
 
         // Sanity checks
-        if (vm.processor.cpu == structs.Cpu.host and !vm.basic.has_acceleration) {
+        if (vm.processor.cpu == .host and !vm.basic.has_acceleration) {
             try gui.dialog(@src(), .{ .title = "Error", .message = "CPU model \"host\" requires hardware acceleration." });
             return;
-        } else if (vm.basic.usb_type == structs.UsbType.none and vm.peripherals.keyboard == structs.Keyboard.usb) {
+        } else if (vm.basic.usb_type == .none and vm.peripherals.keyboard == .usb) {
             try gui.dialog(@src(), .{ .title = "Error", .message = "Keyboard model \"usb\" requires a USB controller." });
             return;
-        } else if (vm.basic.usb_type == structs.UsbType.none and vm.peripherals.mouse == structs.Mouse.usb) {
+        } else if (vm.basic.usb_type == .none and vm.peripherals.mouse == .usb) {
             try gui.dialog(@src(), .{ .title = "Error", .message = "Mouse model \"usb\" requires a USB controller." });
             return;
         }
@@ -386,7 +386,7 @@ fn processor_gui_frame() !void {
         };
 
         // Sanity checks
-        if (vm.processor.cpu == structs.Cpu.host and !vm.basic.has_acceleration) {
+        if (vm.processor.cpu == .host and !vm.basic.has_acceleration) {
             try gui.dialog(@src(), .{ .title = "Error", .message = "CPU model \"host\" requires hardware acceleration." });
             return;
         }
@@ -429,13 +429,13 @@ fn graphics_gui_frame() !void {
         vm.graphics.has_graphics_acceleration = has_graphics_acceleration;
 
         // Sanity checks
-        if (vm.graphics.gpu == structs.Gpu.vga and !vm.graphics.has_vga_emulation) {
+        if (vm.graphics.gpu == .vga and !vm.graphics.has_vga_emulation) {
             try gui.dialog(@src(), .{ .title = "Error", .message = "GPU model \"vga\" requires VGA emulation." });
             return;
-        } else if (vm.graphics.gpu == structs.Gpu.vga and vm.graphics.has_graphics_acceleration) {
+        } else if (vm.graphics.gpu == .vga and vm.graphics.has_graphics_acceleration) {
             try gui.dialog(@src(), .{ .title = "Error", .message = "GPU model \"vga\" doesn't support graphics acceleration." });
             return;
-        } else if (vm.graphics.gpu == structs.Gpu.qxl and vm.graphics.has_graphics_acceleration) {
+        } else if (vm.graphics.gpu == .qxl and vm.graphics.has_graphics_acceleration) {
             try gui.dialog(@src(), .{ .title = "Error", .message = "GPU model \"qxl\" doesn't support graphics acceleration." });
             return;
         }
@@ -499,7 +499,7 @@ fn audio_gui_frame() !void {
             } else if (!vm.audio.has_output) {
                 try gui.dialog(@src(), .{ .title = "Error", .message = "Cannot remove output from sound device \"usb\" (unsupported operation)." });
                 return;
-            } else if (vm.basic.usb_type == structs.UsbType.none) {
+            } else if (vm.basic.usb_type == .none) {
                 try gui.dialog(@src(), .{ .title = "Error", .message = "Sound device \"usb\" requires a USB controller." });
                 return;
             }
@@ -538,10 +538,10 @@ fn peripherals_gui_frame() !void {
         vm.peripherals.has_mouse_absolute_pointing = has_mouse_absolute_pointing;
 
         // Sanity checks
-        if (vm.peripherals.keyboard == structs.Keyboard.usb and vm.basic.usb_type == structs.UsbType.none) {
+        if (vm.peripherals.keyboard == .usb and vm.basic.usb_type == .none) {
             try gui.dialog(@src(), .{ .title = "Error", .message = "Keyboard model \"usb\" requires a USB controller." });
             return;
-        } else if (vm.peripherals.mouse == structs.Mouse.usb and vm.basic.usb_type == structs.UsbType.none) {
+        } else if (vm.peripherals.mouse == .usb and vm.basic.usb_type == .none) {
             try gui.dialog(@src(), .{ .title = "Error", .message = "Mouse model \"usb\" requires a USB controller." });
             return;
         }
@@ -597,13 +597,13 @@ fn drives_gui_frame() !void {
             }).items;
 
             // Sanity checks
-            if (drive.bus == structs.DriveBus.usb and vm.basic.usb_type == structs.UsbType.none) {
+            if (drive.bus == .usb and vm.basic.usb_type == .none) {
                 try gui.dialog(@src(), .{ .title = "Error", .message = "Drive bus \"usb\" requires a USB controller." });
                 return;
-            } else if (drive.bus == structs.DriveBus.usb and drive.is_cdrom) {
+            } else if (drive.bus == .usb and drive.is_cdrom) {
                 try gui.dialog(@src(), .{ .title = "Error", .message = "Drive bus \"usb\" cannot have a CD-ROM drive." });
                 return;
-            } else if (drive.bus == structs.DriveBus.virtio and drive.is_cdrom) {
+            } else if (drive.bus == .virtio and drive.is_cdrom) {
                 try gui.dialog(@src(), .{ .title = "Error", .message = "Drive bus \"virtio\" cannot have a CD-ROM drive." });
                 return;
             }
