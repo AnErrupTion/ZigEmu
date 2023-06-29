@@ -116,6 +116,52 @@ pub fn string_to_usb_type(str: []const u8) ConversionError!structs.UsbType {
     }
 }
 
+pub fn network_type_to_string(network_type: structs.NetworkType) []const u8 {
+    return switch (network_type) {
+        structs.NetworkType.none => "none",
+        structs.NetworkType.nat => "nat",
+    };
+}
+
+pub fn string_to_network_type(str: []const u8) ConversionError!structs.NetworkType {
+    if (std.mem.eql(u8, str, "none")) {
+        return structs.NetworkType.none;
+    } else if (std.mem.eql(u8, str, "nat")) {
+        return structs.NetworkType.nat;
+    } else {
+        return ConversionError.CannotConvertInput;
+    }
+}
+
+pub fn interface_to_string(interface: structs.Interface) []const u8 {
+    return switch (interface) {
+        structs.Interface.rtl8139 => "rtl8139",
+        structs.Interface.e1000 => "e1000",
+        structs.Interface.e1000e => "e1000e",
+        structs.Interface.vmware => "vmware",
+        structs.Interface.usb => "usb",
+        structs.Interface.virtio => "virtio",
+    };
+}
+
+pub fn string_to_interface(str: []const u8) ConversionError!structs.Interface {
+    if (std.mem.eql(u8, str, "rtl8139")) {
+        return structs.Interface.rtl8139;
+    } else if (std.mem.eql(u8, str, "e1000")) {
+        return structs.Interface.e1000;
+    } else if (std.mem.eql(u8, str, "e1000e")) {
+        return structs.Interface.e1000e;
+    } else if (std.mem.eql(u8, str, "vmware")) {
+        return structs.Interface.vmware;
+    } else if (std.mem.eql(u8, str, "usb")) {
+        return structs.Interface.usb;
+    } else if (std.mem.eql(u8, str, "virtio")) {
+        return structs.Interface.virtio;
+    } else {
+        return ConversionError.CannotConvertInput;
+    }
+}
+
 pub fn display_to_string(display: structs.Display) []const u8 {
     return switch (display) {
         structs.Display.none => "none",

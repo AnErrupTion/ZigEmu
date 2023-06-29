@@ -88,42 +88,97 @@ pub fn get_arguments(vm: structs.VirtualMachine, drives: []*structs.Drive) !std.
         try list.append(ahci);
     }
 
+    if (vm.network.type != .none) {
+        try list.append("-netdev");
+
+        switch (vm.network.type) {
+            .nat => {
+                try list.append("user,id=nettype");
+            },
+            else => unreachable,
+        }
+
+        try list.append("-device");
+
+        switch (vm.network.interface) {
+            .rtl8139 => {
+                var network = try std.fmt.allocPrint(main.gpa, "rtl8139,bus={s}.0,netdev=nettype", .{pci_bus_type});
+
+                try permanent_buffers.arrays.append(network);
+                try list.append(network);
+            },
+            .e1000 => {
+                var network = try std.fmt.allocPrint(main.gpa, "e1000,bus={s}.0,netdev=nettype", .{pci_bus_type});
+
+                try permanent_buffers.arrays.append(network);
+                try list.append(network);
+            },
+            .e1000e => {
+                var network = try std.fmt.allocPrint(main.gpa, "e1000e,bus={s}.0,netdev=nettype", .{pci_bus_type});
+
+                try permanent_buffers.arrays.append(network);
+                try list.append(network);
+            },
+            .vmware => {
+                var network = try std.fmt.allocPrint(main.gpa, "vmxnet3,bus={s}.0,netdev=nettype", .{pci_bus_type});
+
+                try permanent_buffers.arrays.append(network);
+                try list.append(network);
+            },
+            .usb => {
+                try list.append("usb-net,bus=usb.0,netdev=nettype");
+            },
+            .virtio => {
+                var network = try std.fmt.allocPrint(main.gpa, "virtio-net-pci,bus={s}.0,netdev=nettype", .{pci_bus_type});
+
+                try permanent_buffers.arrays.append(network);
+                try list.append(network);
+            },
+        }
+    }
+
     if (vm.graphics.gpu != .none) {
         try list.append("-device");
 
-        if (vm.graphics.gpu == .qxl) {
-            if (vm.graphics.has_graphics_acceleration) unreachable;
+        switch (vm.graphics.gpu) {
+            .qxl => {
+                if (vm.graphics.has_graphics_acceleration) unreachable;
 
-            var qxl = try std.fmt.allocPrint(main.gpa, "{s},bus={s}.0", .{ if (vm.graphics.has_vga_emulation) "qxl-vga" else "qxl", pci_bus_type });
+                var qxl = try std.fmt.allocPrint(main.gpa, "{s},bus={s}.0", .{ if (vm.graphics.has_vga_emulation) "qxl-vga" else "qxl", pci_bus_type });
 
-            try permanent_buffers.arrays.append(qxl);
+                try permanent_buffers.arrays.append(qxl);
 
-            try list.append(qxl);
-        } else if (vm.graphics.gpu == .vga) {
-            if (vm.graphics.has_graphics_acceleration) unreachable;
-            if (!vm.graphics.has_vga_emulation) unreachable;
+                try list.append(qxl);
+            },
+            .vga => {
+                if (vm.graphics.has_graphics_acceleration) unreachable;
+                if (!vm.graphics.has_vga_emulation) unreachable;
 
-            var vga = try std.fmt.allocPrint(main.gpa, "VGA,bus={s}.0", .{pci_bus_type});
+                var vga = try std.fmt.allocPrint(main.gpa, "VGA,bus={s}.0", .{pci_bus_type});
 
-            try permanent_buffers.arrays.append(vga);
+                try permanent_buffers.arrays.append(vga);
 
-            try list.append(vga);
-        } else if (vm.graphics.gpu == .vmware) {
-            if (vm.graphics.has_graphics_acceleration) unreachable;
-            if (!vm.graphics.has_vga_emulation) unreachable;
+                try list.append(vga);
+            },
+            .vmware => {
+                if (vm.graphics.has_graphics_acceleration) unreachable;
+                if (!vm.graphics.has_vga_emulation) unreachable;
 
-            var vmware = try std.fmt.allocPrint(main.gpa, "vmware-svga,bus={s}.0", .{pci_bus_type});
+                var vmware = try std.fmt.allocPrint(main.gpa, "vmware-svga,bus={s}.0", .{pci_bus_type});
 
-            try permanent_buffers.arrays.append(vmware);
+                try permanent_buffers.arrays.append(vmware);
 
-            try list.append(vmware);
-        } else if (vm.graphics.gpu == .virtio) {
-            var virtio_gpu_type = if (vm.graphics.has_vga_emulation and vm.graphics.has_graphics_acceleration) "vga-gl" else if (vm.graphics.has_vga_emulation and !vm.graphics.has_graphics_acceleration) "vga" else if (!vm.graphics.has_vga_emulation and vm.graphics.has_graphics_acceleration) "gpu-gl" else "gpu";
-            var virtio = try std.fmt.allocPrint(main.gpa, "virtio-{s},bus={s}.0", .{ virtio_gpu_type, pci_bus_type });
+                try list.append(vmware);
+            },
+            .virtio => {
+                var virtio_gpu_type = if (vm.graphics.has_vga_emulation and vm.graphics.has_graphics_acceleration) "vga-gl" else if (vm.graphics.has_vga_emulation and !vm.graphics.has_graphics_acceleration) "vga" else if (!vm.graphics.has_vga_emulation and vm.graphics.has_graphics_acceleration) "gpu-gl" else "gpu";
+                var virtio = try std.fmt.allocPrint(main.gpa, "virtio-{s},bus={s}.0", .{ virtio_gpu_type, pci_bus_type });
 
-            try permanent_buffers.arrays.append(virtio);
+                try permanent_buffers.arrays.append(virtio);
 
-            try list.append(virtio);
+                try list.append(virtio);
+            },
+            else => unreachable,
         }
     }
 

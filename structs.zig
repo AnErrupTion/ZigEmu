@@ -20,6 +20,20 @@ pub const Cpu = enum {
     max,
 };
 
+pub const NetworkType = enum {
+    none,
+    nat,
+};
+
+pub const Interface = enum {
+    rtl8139,
+    e1000,
+    e1000e,
+    vmware,
+    usb,
+    virtio,
+};
+
 pub const Display = enum {
     none,
     sdl,
@@ -83,6 +97,9 @@ pub const Drive = struct {
     path: []const u8,
 };
 
+// TODO: Force PCI setting
+// TODO: "removable" drive type
+// TODO: "cache" and "discard" drive settings
 // TODO: Controllers? (more modular)
 // TODO: PCI/USB host devices
 pub const VirtualMachine = struct {
@@ -103,7 +120,10 @@ pub const VirtualMachine = struct {
         cores: u64,
         threads: u64,
     },
-    network: struct {},
+    network: struct {
+        type: NetworkType,
+        interface: Interface,
+    },
     graphics: struct {
         display: Display,
         gpu: Gpu,

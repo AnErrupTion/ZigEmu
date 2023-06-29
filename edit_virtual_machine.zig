@@ -24,12 +24,15 @@ var chipset = std.mem.zeroes([8]u8);
 var usb_type = std.mem.zeroes([4]u8);
 var has_ahci = false;
 
+var ram = std.mem.zeroes([32]u8);
+
 var cpu = std.mem.zeroes([128]u8);
 var features = std.mem.zeroes([1024]u8);
 var cores = std.mem.zeroes([16]u8);
 var threads = std.mem.zeroes([16]u8);
 
-var ram = std.mem.zeroes([32]u8);
+var network_type = std.mem.zeroes([8]u8);
+var interface = std.mem.zeroes([8]u8);
 
 var display = std.mem.zeroes([8]u8);
 var gpu = std.mem.zeroes([16]u8);
@@ -223,7 +226,13 @@ fn init_processor() !void {
     set_buffer(&threads, threads_format);
 }
 
-fn init_network() !void {}
+fn init_network() !void {
+    @memset(&network_type, 0);
+    @memset(&interface, 0);
+
+    set_buffer(&network_type, utils.network_type_to_string(vm.network.type));
+    set_buffer(&interface, utils.interface_to_string(vm.network.interface));
+}
 
 fn init_graphics() !void {
     @memset(&display, 0);
@@ -396,7 +405,34 @@ fn processor_gui_frame() !void {
     }
 }
 
-fn network_gui_frame() !void {}
+fn network_gui_frame() !void {
+    option_index = 0;
+
+    try add_text_option("Type", &network_type);
+    try add_text_option("Interface", &interface);
+
+    if (try gui.button(@src(), "Save", .{ .expand = .horizontal, .color_style = .accent })) {
+        // Write updated data to struct
+        vm.network.type = utils.string_to_network_type((utils.sanitize_output_text(&network_type, false) catch {
+            try gui.dialog(@src(), .{ .title = "Error", .message = "Please enter a valid network type!" });
+            return;
+        }).items) catch {
+            try gui.dialog(@src(), .{ .title = "Error", .message = "Please enter a valid network type!" });
+            return;
+        };
+
+        vm.network.interface = utils.string_to_interface((utils.sanitize_output_text(&interface, false) catch {
+            try gui.dialog(@src(), .{ .title = "Error", .message = "Please enter a valid network interface name!" });
+            return;
+        }).items) catch {
+            try gui.dialog(@src(), .{ .title = "Error", .message = "Please enter a valid network interface name!" });
+            return;
+        };
+
+        // Write to file
+        try save_changes();
+    }
+}
 
 fn graphics_gui_frame() !void {
     option_index = 0;

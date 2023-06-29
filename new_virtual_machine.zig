@@ -121,7 +121,10 @@ pub fn gui_frame() !void {
                 .cores = actual_cores,
                 .threads = actual_threads,
             },
-            .network = .{},
+            .network = .{
+                .type = .nat,
+                .interface = .e1000,
+            },
             .graphics = .{
                 .display = .sdl,
                 .gpu = .vga,
