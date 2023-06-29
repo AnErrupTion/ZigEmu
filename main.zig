@@ -72,7 +72,7 @@ pub fn main() !void {
 
         try gui_frame();
 
-        const end_micros = try win.end();
+        const end_micros = try win.end(.{});
 
         backend.setCursor(win.cursorRequested());
         backend.renderPresent();
