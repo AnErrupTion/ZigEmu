@@ -91,6 +91,8 @@ pub fn gui_frame() !void {
     if (!show) {
         if (initialized) {
             try deinit();
+
+            setting = 0;
             initialized = false;
         }
 
