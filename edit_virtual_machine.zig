@@ -518,9 +518,19 @@ fn drives_gui_frame() !void {
                 try gui.dialog(@src(), .{ .title = "Error", .message = "Please enter a valid drive path!" });
                 return;
             }).items;
-        }
 
-        // Sanity checks
+            // Sanity checks
+            if (drive.bus == structs.DriveBus.usb and vm.basic.usb_type == structs.UsbType.none) {
+                try gui.dialog(@src(), .{ .title = "Error", .message = "Drive bus \"usb\" requires a USB controller." });
+                return;
+            } else if (drive.bus == structs.DriveBus.usb and drive.is_cdrom) {
+                try gui.dialog(@src(), .{ .title = "Error", .message = "Drive bus \"usb\" cannot have a CD-ROM drive." });
+                return;
+            } else if (drive.bus == structs.DriveBus.virtio and drive.is_cdrom) {
+                try gui.dialog(@src(), .{ .title = "Error", .message = "Drive bus \"virtio\" cannot have a CD-ROM drive." });
+                return;
+            }
+        }
 
         // Write to file
         try save_changes();
