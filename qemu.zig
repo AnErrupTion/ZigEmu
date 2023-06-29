@@ -34,13 +34,11 @@ pub fn get_arguments(vm: structs.VirtualMachine, drives: []*structs.Drive) !std.
 
     try list.append("-accel");
     if (vm.basic.has_acceleration) {
-        if (builtin.os.tag == .windows) {
-            try list.append("whpx");
-        } else if (builtin.os.tag == .macos) {
-            try list.append("hvf");
-        } else {
-            try list.append("kvm");
-        }
+        try list.append(switch (builtin.os.tag) {
+            .windows => "whpx",
+            .macos => "hvf",
+            else => "kvm",
+        });
     } else {
         try list.append("tcg");
     }

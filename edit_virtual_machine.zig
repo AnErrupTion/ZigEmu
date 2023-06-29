@@ -140,7 +140,9 @@ pub fn gui_frame() !void {
             var qemu_arguments = try qemu.get_arguments(vm, drives);
             defer qemu_arguments.deinit();
 
-            _ = std.ChildProcess.exec(.{ .argv = qemu_arguments.items, .allocator = main.gpa }) catch {
+            var qemu_process = std.ChildProcess.init(qemu_arguments.items, main.gpa);
+
+            qemu_process.spawn() catch {
                 try gui.dialog(@src(), .{ .title = "Error", .message = "Unable to create a child process for QEMU." });
                 return;
             };
