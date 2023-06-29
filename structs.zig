@@ -97,7 +97,6 @@ pub const Drive = struct {
     path: []const u8,
 };
 
-// TODO: Force PCI setting
 // TODO: "removable" drive type
 // TODO: "cache" and "discard" drive settings
 // TODO: Controllers? (more modular)

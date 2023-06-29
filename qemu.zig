@@ -13,6 +13,7 @@ pub fn get_arguments(vm: structs.VirtualMachine, drives: []*structs.Drive) !std.
     var cpu = if (vm.processor.features.len > 0) try std.fmt.allocPrint(main.gpa, "{s},{s}", .{ utils.cpu_to_string(vm.processor.cpu), vm.processor.features }) else utils.cpu_to_string(vm.processor.cpu);
     var ram = try std.fmt.allocPrint(main.gpa, "{d}M", .{vm.memory.ram});
     var smp = try std.fmt.allocPrint(main.gpa, "cores={d},threads={d}", .{ vm.processor.cores, vm.processor.threads });
+    var display = try std.fmt.allocPrint(main.gpa, "{s},gl={s}", .{ utils.display_to_string(vm.graphics.display), if (vm.graphics.has_graphics_acceleration) "on" else "off" });
 
     var machine = utils.chipset_to_string(vm.basic.chipset);
     var pci_bus_type = if (std.mem.eql(u8, machine, "q35")) "pcie" else "pci";
@@ -26,6 +27,7 @@ pub fn get_arguments(vm: structs.VirtualMachine, drives: []*structs.Drive) !std.
     }
     try permanent_buffers.arrays.append(ram);
     try permanent_buffers.arrays.append(smp);
+    try permanent_buffers.arrays.append(display);
 
     try list.append(qemu_name);
     try list.append("-nodefaults");
@@ -59,7 +61,7 @@ pub fn get_arguments(vm: structs.VirtualMachine, drives: []*structs.Drive) !std.
     try list.append(smp);
 
     try list.append("-display");
-    try list.append(utils.display_to_string(vm.graphics.display));
+    try list.append(display);
 
     if (vm.basic.usb_type != .none) {
         var usb = try std.fmt.allocPrint(main.gpa, "{s},bus={s}.0,id=usb", .{
