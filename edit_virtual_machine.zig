@@ -9,7 +9,7 @@ const qemu = @import("qemu.zig");
 pub var vm: structs.VirtualMachine = undefined;
 pub var show = false;
 
-var drives: []structs.Drive = undefined;
+var drives: []*structs.Drive = undefined;
 
 var vm_directory: std.fs.Dir = undefined;
 var initialized = false;
@@ -48,12 +48,12 @@ var drives_options = std.mem.zeroes([5]struct {
 });
 
 pub fn init() !void {
-    drives = try main.gpa.alloc(structs.Drive, 5);
-    drives[0] = vm.drive0;
-    drives[1] = vm.drive1;
-    drives[2] = vm.drive2;
-    drives[3] = vm.drive3;
-    drives[4] = vm.drive4;
+    drives = try main.gpa.alloc(*structs.Drive, 5);
+    drives[0] = &vm.drive0;
+    drives[1] = &vm.drive1;
+    drives[2] = &vm.drive2;
+    drives[3] = &vm.drive3;
+    drives[4] = &vm.drive4;
 
     vm_directory = try std.fs.cwd().openDir(vm.basic.name, .{});
 
@@ -480,9 +480,10 @@ fn drives_gui_frame() !void {
     var scroll = try gui.scrollArea(@src(), .{}, .{ .expand = .both, .color_style = .window });
     defer scroll.deinit();
 
-    for (drives, 0..) |drive, i| {
-        _ = drive;
+    for (drives, 0..) |_, i| {
         var drive_options = &drives_options[i];
+
+        try gui.label(@src(), "Drive {d}:", .{i}, .{ .id_extra = option_index });
 
         try add_bool_option("CD-ROM", &drive_options.is_cdrom);
         try add_text_option("Bus", &drive_options.bus);
@@ -490,7 +491,40 @@ fn drives_gui_frame() !void {
         try add_text_option("Path", &drive_options.path);
     }
 
-    if (try gui.button(@src(), "Save", .{ .expand = .horizontal, .color_style = .accent })) {}
+    if (try gui.button(@src(), "Save", .{ .expand = .horizontal, .color_style = .accent })) {
+        // Write updated data to struct
+        for (drives, 0..) |drive, i| {
+            var drive_options = drives_options[i];
+
+            drive.*.is_cdrom = drive_options.is_cdrom;
+
+            drive.*.bus = utils.string_to_drive_bus((utils.sanitize_output_text(&drive_options.bus, false) catch {
+                try gui.dialog(@src(), .{ .title = "Error", .message = "Please enter a valid drive bus name!" });
+                return;
+            }).items) catch {
+                try gui.dialog(@src(), .{ .title = "Error", .message = "Please enter a valid drive bus name!" });
+                return;
+            };
+
+            drive.*.format = utils.string_to_drive_format((utils.sanitize_output_text(&drive_options.format, false) catch {
+                try gui.dialog(@src(), .{ .title = "Error", .message = "Please enter a valid drive format name!" });
+                return;
+            }).items) catch {
+                try gui.dialog(@src(), .{ .title = "Error", .message = "Please enter a valid drive format name!" });
+                return;
+            };
+
+            drive.*.path = (utils.sanitize_output_text(&drive_options.path, false) catch {
+                try gui.dialog(@src(), .{ .title = "Error", .message = "Please enter a valid drive path!" });
+                return;
+            }).items;
+        }
+
+        // Sanity checks
+
+        // Write to file
+        try save_changes();
+    }
 }
 
 fn command_line_gui_frame() !void {
@@ -504,7 +538,7 @@ fn command_line_gui_frame() !void {
         for (arg) |c| {
             try arguments.append(c);
         }
-        try arguments.append(' ');
+        try arguments.appendSlice(" \\\n    ");
     }
 
     try gui.textEntry(@src(), .{ .text = arguments.items }, .{ .expand = .both });

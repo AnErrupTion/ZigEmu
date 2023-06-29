@@ -202,6 +202,20 @@ pub fn string_to_mouse(str: []const u8) ConversionError!structs.Mouse {
     }
 }
 
+pub fn string_to_drive_bus(str: []const u8) ConversionError!structs.DriveBus {
+    if (std.mem.eql(u8, str, "usb")) {
+        return structs.DriveBus.usb;
+    } else if (std.mem.eql(u8, str, "ide")) {
+        return structs.DriveBus.ide;
+    } else if (std.mem.eql(u8, str, "sata")) {
+        return structs.DriveBus.sata;
+    } else if (std.mem.eql(u8, str, "virtio")) {
+        return structs.DriveBus.virtio;
+    } else {
+        return ConversionError.CannotConvertInput;
+    }
+}
+
 pub fn drive_bus_to_string(drive_bus: structs.DriveBus) []const u8 {
     return switch (drive_bus) {
         structs.DriveBus.usb => "usb",
@@ -209,6 +223,22 @@ pub fn drive_bus_to_string(drive_bus: structs.DriveBus) []const u8 {
         structs.DriveBus.sata => "sata",
         structs.DriveBus.virtio => "virtio",
     };
+}
+
+pub fn string_to_drive_format(str: []const u8) ConversionError!structs.DriveFormat {
+    if (std.mem.eql(u8, str, "raw")) {
+        return structs.DriveFormat.raw;
+    } else if (std.mem.eql(u8, str, "qcow2")) {
+        return structs.DriveFormat.qcow2;
+    } else if (std.mem.eql(u8, str, "vmdk")) {
+        return structs.DriveFormat.vmdk;
+    } else if (std.mem.eql(u8, str, "vdi")) {
+        return structs.DriveFormat.vdi;
+    } else if (std.mem.eql(u8, str, "vhd")) {
+        return structs.DriveFormat.vhd;
+    } else {
+        return ConversionError.CannotConvertInput;
+    }
 }
 
 pub fn drive_format_to_string(drive_format: structs.DriveFormat) []const u8 {
