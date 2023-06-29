@@ -7,6 +7,14 @@ pub const Chipset = enum {
     q35,
 };
 
+pub const UsbType = enum {
+    none,
+    ohci,
+    uhci,
+    ehci,
+    xhci,
+};
+
 pub const Cpu = enum {
     host,
     max,
@@ -23,7 +31,22 @@ pub const Gpu = enum {
     none,
     vga,
     qxl,
+    vmware,
     virtio,
+};
+
+pub const HostDevice = enum {
+    none,
+    alsa,
+    pulseaudio,
+};
+
+pub const Sound = enum {
+    sb16,
+    ac97,
+    ich6,
+    ich9,
+    usb,
 };
 
 pub const Keyboard = enum {
@@ -53,14 +76,6 @@ pub const DriveFormat = enum {
     vhd,
 };
 
-pub const UsbType = enum {
-    none,
-    ohci,
-    uhci,
-    ehci,
-    xhci,
-};
-
 pub const Drive = struct {
     is_cdrom: bool,
     bus: DriveBus,
@@ -68,8 +83,8 @@ pub const Drive = struct {
     path: []const u8,
 };
 
-// TODO: PCI/USB host devices
 // TODO: Controllers? (more modular)
+// TODO: PCI/USB host devices
 pub const VirtualMachine = struct {
     basic: struct {
         name: []const u8,
@@ -95,7 +110,12 @@ pub const VirtualMachine = struct {
         has_vga_emulation: bool,
         has_graphics_acceleration: bool,
     },
-    audio: struct {},
+    audio: struct {
+        host_device: HostDevice,
+        sound: Sound,
+        has_input: bool,
+        has_output: bool,
+    },
     peripherals: struct {
         keyboard: Keyboard,
         mouse: Mouse,

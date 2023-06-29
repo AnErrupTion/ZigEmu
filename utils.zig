@@ -144,6 +144,7 @@ pub fn gpu_to_string(gpu: structs.Gpu) []const u8 {
         structs.Gpu.none => "none",
         structs.Gpu.vga => "vga",
         structs.Gpu.qxl => "qxl",
+        structs.Gpu.vmware => "vmware",
         structs.Gpu.virtio => "virtio",
     };
 }
@@ -155,8 +156,56 @@ pub fn string_to_gpu(str: []const u8) ConversionError!structs.Gpu {
         return structs.Gpu.vga;
     } else if (std.mem.eql(u8, str, "qxl")) {
         return structs.Gpu.qxl;
+    } else if (std.mem.eql(u8, str, "vmware")) {
+        return structs.Gpu.vmware;
     } else if (std.mem.eql(u8, str, "virtio")) {
         return structs.Gpu.virtio;
+    } else {
+        return ConversionError.CannotConvertInput;
+    }
+}
+
+pub fn host_device_to_string(host_device: structs.HostDevice) []const u8 {
+    return switch (host_device) {
+        structs.HostDevice.none => "none",
+        structs.HostDevice.alsa => "alsa",
+        structs.HostDevice.pulseaudio => "pulseaudio",
+    };
+}
+
+pub fn string_to_host_device(str: []const u8) ConversionError!structs.HostDevice {
+    if (std.mem.eql(u8, str, "none")) {
+        return structs.HostDevice.none;
+    } else if (std.mem.eql(u8, str, "alsa")) {
+        return structs.HostDevice.alsa;
+    } else if (std.mem.eql(u8, str, "pulseaudio")) {
+        return structs.HostDevice.pulseaudio;
+    } else {
+        return ConversionError.CannotConvertInput;
+    }
+}
+
+pub fn sound_to_string(sound: structs.Sound) []const u8 {
+    return switch (sound) {
+        structs.Sound.sb16 => "sb16",
+        structs.Sound.ac97 => "ac97",
+        structs.Sound.ich6 => "ich6",
+        structs.Sound.ich9 => "ich9",
+        structs.Sound.usb => "usb",
+    };
+}
+
+pub fn string_to_sound(str: []const u8) ConversionError!structs.Sound {
+    if (std.mem.eql(u8, str, "sb16")) {
+        return structs.Sound.sb16;
+    } else if (std.mem.eql(u8, str, "ac97")) {
+        return structs.Sound.ac97;
+    } else if (std.mem.eql(u8, str, "ich6")) {
+        return structs.Sound.ich6;
+    } else if (std.mem.eql(u8, str, "ich9")) {
+        return structs.Sound.ich9;
+    } else if (std.mem.eql(u8, str, "usb")) {
+        return structs.Sound.usb;
     } else {
         return ConversionError.CannotConvertInput;
     }
@@ -202,6 +251,15 @@ pub fn string_to_mouse(str: []const u8) ConversionError!structs.Mouse {
     }
 }
 
+pub fn drive_bus_to_string(drive_bus: structs.DriveBus) []const u8 {
+    return switch (drive_bus) {
+        structs.DriveBus.usb => "usb",
+        structs.DriveBus.ide => "ide",
+        structs.DriveBus.sata => "sata",
+        structs.DriveBus.virtio => "virtio",
+    };
+}
+
 pub fn string_to_drive_bus(str: []const u8) ConversionError!structs.DriveBus {
     if (std.mem.eql(u8, str, "usb")) {
         return structs.DriveBus.usb;
@@ -216,12 +274,13 @@ pub fn string_to_drive_bus(str: []const u8) ConversionError!structs.DriveBus {
     }
 }
 
-pub fn drive_bus_to_string(drive_bus: structs.DriveBus) []const u8 {
-    return switch (drive_bus) {
-        structs.DriveBus.usb => "usb",
-        structs.DriveBus.ide => "ide",
-        structs.DriveBus.sata => "sata",
-        structs.DriveBus.virtio => "virtio",
+pub fn drive_format_to_string(drive_format: structs.DriveFormat) []const u8 {
+    return switch (drive_format) {
+        structs.DriveFormat.raw => "raw",
+        structs.DriveFormat.qcow2 => "qcow2",
+        structs.DriveFormat.vmdk => "vmdk",
+        structs.DriveFormat.vdi => "vdi",
+        structs.DriveFormat.vhd => "vhd",
     };
 }
 
@@ -239,14 +298,4 @@ pub fn string_to_drive_format(str: []const u8) ConversionError!structs.DriveForm
     } else {
         return ConversionError.CannotConvertInput;
     }
-}
-
-pub fn drive_format_to_string(drive_format: structs.DriveFormat) []const u8 {
-    return switch (drive_format) {
-        structs.DriveFormat.raw => "raw",
-        structs.DriveFormat.qcow2 => "qcow2",
-        structs.DriveFormat.vmdk => "vmdk",
-        structs.DriveFormat.vdi => "vdi",
-        structs.DriveFormat.vhd => "vhd",
-    };
 }

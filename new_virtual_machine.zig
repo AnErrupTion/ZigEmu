@@ -82,16 +82,16 @@ pub fn gui_frame() !void {
         // Dummy drive by default (empty path)
         var boot_drive: structs.Drive = .{
             .is_cdrom = false,
-            .bus = structs.DriveBus.ide,
-            .format = structs.DriveFormat.raw,
+            .bus = .ide,
+            .format = .raw,
             .path = "",
         };
 
         if (has_boot_image) {
             boot_drive = .{
                 .is_cdrom = true,
-                .bus = structs.DriveBus.sata,
-                .format = structs.DriveFormat.raw,
+                .bus = .sata,
+                .format = .raw,
                 .path = actual_boot_image.items,
             };
         }
@@ -106,57 +106,62 @@ pub fn gui_frame() !void {
         const vm = structs.VirtualMachine{
             .basic = .{
                 .name = actual_name.items,
-                .architecture = structs.Architecture.amd64,
-                .chipset = structs.Chipset.q35,
+                .architecture = .amd64,
+                .chipset = .q35,
                 .has_acceleration = true,
-                .usb_type = structs.UsbType.ehci,
+                .usb_type = .ehci,
                 .has_ahci = true,
             },
             .memory = .{
                 .ram = actual_ram,
             },
             .processor = .{
-                .cpu = structs.Cpu.host,
+                .cpu = .host,
                 .features = "",
                 .cores = actual_cores,
                 .threads = actual_threads,
             },
             .network = .{},
             .graphics = .{
-                .display = structs.Display.sdl,
-                .gpu = structs.Gpu.vga,
+                .display = .sdl,
+                .gpu = .vga,
                 .has_vga_emulation = true,
                 .has_graphics_acceleration = false,
             },
-            .audio = .{},
+            .audio = .{
+                .host_device = .none,
+                .sound = .ac97,
+                .has_input = false,
+                .has_output = true,
+            },
             .peripherals = .{
-                .keyboard = structs.Keyboard.usb,
-                .mouse = structs.Mouse.usb,
+                .keyboard = .usb,
+                .mouse = .usb,
                 .has_mouse_absolute_pointing = true,
             },
             .drive0 = .{
                 .is_cdrom = false,
-                .bus = structs.DriveBus.sata,
-                .format = structs.DriveFormat.raw,
+                .bus = .sata,
+                .format = .raw,
                 .path = "disk.img",
             },
             .drive1 = boot_drive,
             .drive2 = .{
                 .is_cdrom = false,
-                .bus = structs.DriveBus.ide,
-                .format = structs.DriveFormat.raw,
+                .bus = .ide,
+                .format = .raw,
                 .path = "",
             },
             .drive3 = .{
                 .is_cdrom = false,
-                .bus = structs.DriveBus.ide,
-                .format = structs.DriveFormat.raw,
+                .bus = .ide,
+                .format = .raw,
                 .path = "",
             },
             .drive4 = .{
                 .is_cdrom = false,
-                .bus = structs.DriveBus.ide,
-                .format = structs.DriveFormat.raw,
+                .bus = .ide,
+                .format = .raw,
                 .path = "",
             },
         };

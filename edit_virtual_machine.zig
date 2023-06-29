@@ -36,6 +36,11 @@ var gpu = std.mem.zeroes([16]u8);
 var has_vga_emulation = false;
 var has_graphics_acceleration = false;
 
+var host_device = std.mem.zeroes([16]u8);
+var sound = std.mem.zeroes([8]u8);
+var has_input = false;
+var has_output = false;
+
 var keyboard = std.mem.zeroes([8]u8);
 var mouse = std.mem.zeroes([8]u8);
 var has_mouse_absolute_pointing = false;
@@ -231,7 +236,16 @@ fn init_graphics() !void {
     has_graphics_acceleration = vm.graphics.has_graphics_acceleration;
 }
 
-fn init_audio() !void {}
+fn init_audio() !void {
+    @memset(&host_device, 0);
+    @memset(&sound, 0);
+
+    set_buffer(&host_device, utils.host_device_to_string(vm.audio.host_device));
+    set_buffer(&sound, utils.sound_to_string(vm.audio.sound));
+
+    has_input = vm.audio.has_input;
+    has_output = vm.audio.has_output;
+}
 
 fn init_peripherals() !void {
     @memset(&keyboard, 0);
@@ -431,7 +445,70 @@ fn graphics_gui_frame() !void {
     }
 }
 
-fn audio_gui_frame() !void {}
+fn audio_gui_frame() !void {
+    option_index = 0;
+
+    try add_text_option("Host device", &host_device);
+    try add_text_option("Sound", &sound);
+    try add_bool_option("Input", &has_input);
+    try add_bool_option("Output", &has_output);
+
+    if (try gui.button(@src(), "Save", .{ .expand = .horizontal, .color_style = .accent })) {
+        // Write updated data to struct
+        vm.audio.host_device = utils.string_to_host_device((utils.sanitize_output_text(&host_device, false) catch {
+            try gui.dialog(@src(), .{ .title = "Error", .message = "Please enter a valid host device name!" });
+            return;
+        }).items) catch {
+            try gui.dialog(@src(), .{ .title = "Error", .message = "Please enter a valid host device name!" });
+            return;
+        };
+
+        vm.audio.sound = utils.string_to_sound((utils.sanitize_output_text(&sound, false) catch {
+            try gui.dialog(@src(), .{ .title = "Error", .message = "Please enter a valid sound device name!" });
+            return;
+        }).items) catch {
+            try gui.dialog(@src(), .{ .title = "Error", .message = "Please enter a valid sound device name!" });
+            return;
+        };
+
+        vm.audio.has_input = has_input;
+
+        vm.audio.has_output = has_output;
+
+        // Sanity checks
+        if (vm.audio.sound == .sb16) {
+            if (vm.audio.has_input) {
+                try gui.dialog(@src(), .{ .title = "Error", .message = "Cannot add input to sound device \"sb16\" (unsupported operation)." });
+                return;
+            } else if (!vm.audio.has_output) {
+                try gui.dialog(@src(), .{ .title = "Error", .message = "Cannot remove output from sound device \"sb16\" (unsupported operation)." });
+                return;
+            }
+        } else if (vm.audio.sound == .ac97) {
+            if (vm.audio.has_input) {
+                try gui.dialog(@src(), .{ .title = "Error", .message = "Cannot add input to sound device \"ac97\" (unsupported operation)." });
+                return;
+            } else if (!vm.audio.has_output) {
+                try gui.dialog(@src(), .{ .title = "Error", .message = "Cannot remove output from sound device \"ac97\" (unsupported operation)." });
+                return;
+            }
+        } else if (vm.audio.sound == .usb) {
+            if (vm.audio.has_input) {
+                try gui.dialog(@src(), .{ .title = "Error", .message = "Cannot add input to sound device \"usb\" (unsupported operation)." });
+                return;
+            } else if (!vm.audio.has_output) {
+                try gui.dialog(@src(), .{ .title = "Error", .message = "Cannot remove output from sound device \"usb\" (unsupported operation)." });
+                return;
+            } else if (vm.basic.usb_type == structs.UsbType.none) {
+                try gui.dialog(@src(), .{ .title = "Error", .message = "Sound device \"usb\" requires a USB controller." });
+                return;
+            }
+        }
+
+        // Write to file
+        try save_changes();
+    }
+}
 
 fn peripherals_gui_frame() !void {
     option_index = 0;
