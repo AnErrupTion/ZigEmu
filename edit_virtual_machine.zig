@@ -18,40 +18,40 @@ var setting: u64 = 0;
 var option_index: u64 = 0;
 
 var name = std.mem.zeroes([128]u8);
-var architecture = std.mem.zeroes([16]u8);
+var architecture: u64 = 0;
 var has_acceleration = false;
-var chipset = std.mem.zeroes([8]u8);
-var usb_type = std.mem.zeroes([4]u8);
+var chipset: u64 = 0;
+var usb_type: u64 = 0;
 var has_ahci = false;
 
 var ram = std.mem.zeroes([32]u8);
 
-var cpu = std.mem.zeroes([128]u8);
+var cpu: u64 = 0;
 var features = std.mem.zeroes([1024]u8);
 var cores = std.mem.zeroes([16]u8);
 var threads = std.mem.zeroes([16]u8);
 
-var network_type = std.mem.zeroes([8]u8);
-var interface = std.mem.zeroes([8]u8);
+var network_type: u64 = 0;
+var interface: u64 = 0;
 
-var display = std.mem.zeroes([8]u8);
-var gpu = std.mem.zeroes([16]u8);
+var display: u64 = 0;
+var gpu: u64 = 0;
 var has_vga_emulation = false;
 var has_graphics_acceleration = false;
 
-var host_device = std.mem.zeroes([16]u8);
-var sound = std.mem.zeroes([8]u8);
+var host_device: u64 = 0;
+var sound: u64 = 0;
 var has_input = false;
 var has_output = false;
 
-var keyboard = std.mem.zeroes([8]u8);
-var mouse = std.mem.zeroes([8]u8);
+var keyboard: u64 = 0;
+var mouse: u64 = 0;
 var has_mouse_absolute_pointing = false;
 
 var drives_options = std.mem.zeroes([5]struct {
     is_cdrom: bool,
-    bus: [8]u8,
-    format: [8]u8,
+    bus: u64,
+    format: u64,
     path: [512]u8,
 });
 
@@ -190,16 +190,12 @@ pub fn gui_frame() !void {
 
 fn init_basic() !void {
     @memset(&name, 0);
-    @memset(&architecture, 0);
-    @memset(&chipset, 0);
-    @memset(&usb_type, 0);
 
     set_buffer(&name, vm.basic.name);
-    set_buffer(&architecture, utils.architecture_to_string(vm.basic.architecture));
-    set_buffer(&chipset, utils.chipset_to_string(vm.basic.chipset));
-    set_buffer(&usb_type, utils.usb_type_to_string(vm.basic.usb_type));
-
+    architecture = @intFromEnum(vm.basic.architecture);
     has_acceleration = vm.basic.has_acceleration;
+    chipset = @intFromEnum(vm.basic.chipset);
+    usb_type = @intFromEnum(vm.basic.usb_type);
     has_ahci = vm.basic.has_ahci;
 }
 
@@ -219,54 +215,38 @@ fn init_processor() !void {
     var threads_format = try std.fmt.allocPrint(main.gpa, "{d}", .{vm.processor.threads});
     defer main.gpa.free(threads_format);
 
-    @memset(&cpu, 0);
     @memset(&features, 0);
     @memset(&cores, 0);
     @memset(&threads, 0);
 
-    set_buffer(&cpu, utils.cpu_to_string(vm.processor.cpu));
+    cpu = @intFromEnum(vm.processor.cpu);
     set_buffer(&features, vm.processor.features);
     set_buffer(&cores, cores_format);
     set_buffer(&threads, threads_format);
 }
 
 fn init_network() !void {
-    @memset(&network_type, 0);
-    @memset(&interface, 0);
-
-    set_buffer(&network_type, utils.network_type_to_string(vm.network.type));
-    set_buffer(&interface, utils.interface_to_string(vm.network.interface));
+    network_type = @intFromEnum(vm.network.type);
+    interface = @intFromEnum(vm.network.interface);
 }
 
 fn init_graphics() !void {
-    @memset(&display, 0);
-    @memset(&gpu, 0);
-
-    set_buffer(&display, utils.display_to_string(vm.graphics.display));
-    set_buffer(&gpu, utils.gpu_to_string(vm.graphics.gpu));
-
+    display = @intFromEnum(vm.graphics.display);
+    gpu = @intFromEnum(vm.graphics.gpu);
     has_vga_emulation = vm.graphics.has_vga_emulation;
     has_graphics_acceleration = vm.graphics.has_graphics_acceleration;
 }
 
 fn init_audio() !void {
-    @memset(&host_device, 0);
-    @memset(&sound, 0);
-
-    set_buffer(&host_device, utils.host_device_to_string(vm.audio.host_device));
-    set_buffer(&sound, utils.sound_to_string(vm.audio.sound));
-
+    host_device = @intFromEnum(vm.audio.host_device);
+    sound = @intFromEnum(vm.audio.sound);
     has_input = vm.audio.has_input;
     has_output = vm.audio.has_output;
 }
 
 fn init_peripherals() !void {
-    @memset(&keyboard, 0);
-    @memset(&mouse, 0);
-
-    set_buffer(&keyboard, utils.keyboard_to_string(vm.peripherals.keyboard));
-    set_buffer(&mouse, utils.mouse_to_string(vm.peripherals.mouse));
-
+    keyboard = @intFromEnum(vm.peripherals.keyboard);
+    mouse = @intFromEnum(vm.peripherals.mouse);
     has_mouse_absolute_pointing = vm.peripherals.has_mouse_absolute_pointing;
 }
 
@@ -274,15 +254,12 @@ fn init_drives() !void {
     for (drives, 0..) |drive, i| {
         var drive_options = &drives_options[i];
 
-        @memset(&drive_options.bus, 0);
-        @memset(&drive_options.format, 0);
         @memset(&drive_options.path, 0);
 
-        set_buffer(&drive_options.bus, utils.drive_bus_to_string(drive.bus));
-        set_buffer(&drive_options.format, utils.drive_format_to_string(drive.format));
-        set_buffer(&drive_options.path, drive.path);
-
         drive_options.*.is_cdrom = drive.is_cdrom;
+        drive_options.*.bus = @intFromEnum(drive.bus);
+        drive_options.*.format = @intFromEnum(drive.format);
+        set_buffer(&drive_options.path, drive.path);
     }
 }
 
@@ -290,10 +267,10 @@ fn basic_gui_frame() !void {
     option_index = 0;
 
     try add_text_option("Name", &name);
-    try add_text_option("Architecture", &architecture);
+    try add_combo_option("Architecture", &[_][]const u8{"AMD64"}, &architecture);
     try add_bool_option("Hardware acceleration", &has_acceleration); // TODO: Detect host architecture
-    try add_text_option("Chipset", &chipset);
-    try add_text_option("USB type", &usb_type);
+    try add_combo_option("Chipset", &[_][]const u8{ "i440FX", "Q35" }, &chipset);
+    try add_combo_option("USB type", &[_][]const u8{ "None", "OHCI (Open 1.0)", "UHCI (Proprietary 1.0)", "EHCI (2.0)", "XHCI (3.0)" }, &usb_type);
     try add_bool_option("Use AHCI", &has_ahci);
 
     if (try gui.button(@src(), "Save", .{ .expand = .horizontal, .color_style = .accent })) {
@@ -302,33 +279,10 @@ fn basic_gui_frame() !void {
             try gui.dialog(@src(), .{ .title = "Error", .message = "Please enter a valid name!" });
             return;
         }).items;
-
-        vm.basic.architecture = utils.string_to_architecture((utils.sanitize_output_text(&architecture, false) catch {
-            try gui.dialog(@src(), .{ .title = "Error", .message = "Please enter a valid architecture name!" });
-            return;
-        }).items) catch {
-            try gui.dialog(@src(), .{ .title = "Error", .message = "Please enter a valid architecture name!" });
-            return;
-        };
-
+        vm.basic.architecture = @enumFromInt(architecture);
         vm.basic.has_acceleration = has_acceleration;
-
-        vm.basic.chipset = utils.string_to_chipset((utils.sanitize_output_text(&chipset, false) catch {
-            try gui.dialog(@src(), .{ .title = "Error", .message = "Please enter a valid chipset name!" });
-            return;
-        }).items) catch {
-            try gui.dialog(@src(), .{ .title = "Error", .message = "Please enter a valid chipset name!" });
-            return;
-        };
-
-        vm.basic.usb_type = utils.string_to_usb_type((utils.sanitize_output_text(&usb_type, false) catch {
-            try gui.dialog(@src(), .{ .title = "Error", .message = "Please enter a valid USB type!" });
-            return;
-        }).items) catch {
-            try gui.dialog(@src(), .{ .title = "Error", .message = "Please enter a valid USB type!" });
-            return;
-        };
-
+        vm.basic.chipset = @enumFromInt(chipset);
+        vm.basic.usb_type = @enumFromInt(usb_type);
         vm.basic.has_ahci = has_ahci;
 
         // Sanity checks
@@ -368,31 +322,22 @@ fn memory_gui_frame() !void {
 fn processor_gui_frame() !void {
     option_index = 0;
 
-    try add_text_option("CPU", &cpu);
+    try add_combo_option("CPU", &[_][]const u8{ "Host", "Max" }, &cpu);
     try add_text_option("Features", &features);
     try add_text_option("Cores", &cores);
     try add_text_option("Threads", &threads);
 
     if (try gui.button(@src(), "Save", .{ .expand = .horizontal, .color_style = .accent })) {
         // Write updated data to struct
-        vm.processor.cpu = utils.string_to_cpu((utils.sanitize_output_text(&cpu, false) catch {
-            try gui.dialog(@src(), .{ .title = "Error", .message = "Please enter a valid CPU model name!" });
-            return;
-        }).items) catch {
-            try gui.dialog(@src(), .{ .title = "Error", .message = "Please enter a valid CPU model name!" });
-            return;
-        };
-
+        vm.processor.cpu = @enumFromInt(cpu);
         vm.processor.features = (utils.sanitize_output_text(&features, false) catch {
             try gui.dialog(@src(), .{ .title = "Error", .message = "Please enter a valid feature subset!" });
             return;
         }).items;
-
         vm.processor.cores = utils.sanitize_output_number(&cores) catch {
             try gui.dialog(@src(), .{ .title = "Error", .message = "Please enter a valid amount of cores!" });
             return;
         };
-
         vm.processor.threads = utils.sanitize_output_number(&threads) catch {
             try gui.dialog(@src(), .{ .title = "Error", .message = "Please enter a valid amount of threads!" });
             return;
@@ -412,26 +357,13 @@ fn processor_gui_frame() !void {
 fn network_gui_frame() !void {
     option_index = 0;
 
-    try add_text_option("Type", &network_type);
-    try add_text_option("Interface", &interface);
+    try add_combo_option("Type", &[_][]const u8{ "None", "NAT" }, &network_type);
+    try add_combo_option("Interface", &[_][]const u8{ "RTL8139", "E1000", "E1000e", "VMware", "USB", "VirtIO" }, &interface);
 
     if (try gui.button(@src(), "Save", .{ .expand = .horizontal, .color_style = .accent })) {
         // Write updated data to struct
-        vm.network.type = utils.string_to_network_type((utils.sanitize_output_text(&network_type, false) catch {
-            try gui.dialog(@src(), .{ .title = "Error", .message = "Please enter a valid network type!" });
-            return;
-        }).items) catch {
-            try gui.dialog(@src(), .{ .title = "Error", .message = "Please enter a valid network type!" });
-            return;
-        };
-
-        vm.network.interface = utils.string_to_interface((utils.sanitize_output_text(&interface, false) catch {
-            try gui.dialog(@src(), .{ .title = "Error", .message = "Please enter a valid network interface name!" });
-            return;
-        }).items) catch {
-            try gui.dialog(@src(), .{ .title = "Error", .message = "Please enter a valid network interface name!" });
-            return;
-        };
+        vm.network.type = @enumFromInt(network_type);
+        vm.network.interface = @enumFromInt(interface);
 
         // Write to file
         try save_changes();
@@ -441,31 +373,16 @@ fn network_gui_frame() !void {
 fn graphics_gui_frame() !void {
     option_index = 0;
 
-    try add_text_option("Display", &display);
-    try add_text_option("GPU", &gpu);
+    try add_combo_option("Display", &[_][]const u8{ "None", "SDL", "GTK", "SPICE" }, &display);
+    try add_combo_option("GPU", &[_][]const u8{ "None", "VGA", "QXL", "VMware", "VirtIO" }, &gpu);
     try add_bool_option("VGA emulation", &has_vga_emulation);
     try add_bool_option("Graphics acceleration", &has_graphics_acceleration);
 
     if (try gui.button(@src(), "Save", .{ .expand = .horizontal, .color_style = .accent })) {
         // Write updated data to struct
-        vm.graphics.display = utils.string_to_display((utils.sanitize_output_text(&display, false) catch {
-            try gui.dialog(@src(), .{ .title = "Error", .message = "Please enter a valid display name!" });
-            return;
-        }).items) catch {
-            try gui.dialog(@src(), .{ .title = "Error", .message = "Please enter a valid display name!" });
-            return;
-        };
-
-        vm.graphics.gpu = utils.string_to_gpu((utils.sanitize_output_text(&gpu, false) catch {
-            try gui.dialog(@src(), .{ .title = "Error", .message = "Please enter a valid GPU model name!" });
-            return;
-        }).items) catch {
-            try gui.dialog(@src(), .{ .title = "Error", .message = "Please enter a valid GPU model name!" });
-            return;
-        };
-
+        vm.graphics.display = @enumFromInt(display);
+        vm.graphics.gpu = @enumFromInt(gpu);
         vm.graphics.has_vga_emulation = has_vga_emulation;
-
         vm.graphics.has_graphics_acceleration = has_graphics_acceleration;
 
         // Sanity checks
@@ -488,31 +405,16 @@ fn graphics_gui_frame() !void {
 fn audio_gui_frame() !void {
     option_index = 0;
 
-    try add_text_option("Host device", &host_device);
-    try add_text_option("Sound", &sound);
+    try add_combo_option("Host device", &[_][]const u8{ "None", "ALSA", "PulseAudio" }, &host_device);
+    try add_combo_option("Sound", &[_][]const u8{ "Sound Blaster 16", "AC97", "HDA ICH6", "HDA ICH9", "USB" }, &sound);
     try add_bool_option("Input", &has_input);
     try add_bool_option("Output", &has_output);
 
     if (try gui.button(@src(), "Save", .{ .expand = .horizontal, .color_style = .accent })) {
         // Write updated data to struct
-        vm.audio.host_device = utils.string_to_host_device((utils.sanitize_output_text(&host_device, false) catch {
-            try gui.dialog(@src(), .{ .title = "Error", .message = "Please enter a valid host device name!" });
-            return;
-        }).items) catch {
-            try gui.dialog(@src(), .{ .title = "Error", .message = "Please enter a valid host device name!" });
-            return;
-        };
-
-        vm.audio.sound = utils.string_to_sound((utils.sanitize_output_text(&sound, false) catch {
-            try gui.dialog(@src(), .{ .title = "Error", .message = "Please enter a valid sound device name!" });
-            return;
-        }).items) catch {
-            try gui.dialog(@src(), .{ .title = "Error", .message = "Please enter a valid sound device name!" });
-            return;
-        };
-
+        vm.audio.host_device = @enumFromInt(host_device);
+        vm.audio.sound = @enumFromInt(sound);
         vm.audio.has_input = has_input;
-
         vm.audio.has_output = has_output;
 
         // Sanity checks
@@ -553,28 +455,14 @@ fn audio_gui_frame() !void {
 fn peripherals_gui_frame() !void {
     option_index = 0;
 
-    try add_text_option("Keyboard", &keyboard);
-    try add_text_option("Mouse", &mouse);
+    try add_combo_option("Keyboard", &[_][]const u8{ "None", "USB", "VirtIO" }, &keyboard);
+    try add_combo_option("Mouse", &[_][]const u8{ "None", "USB", "VirtIO" }, &mouse);
     try add_bool_option("Absolute mouse pointing", &has_mouse_absolute_pointing);
 
     if (try gui.button(@src(), "Save", .{ .expand = .horizontal, .color_style = .accent })) {
         // Write updated data to struct
-        vm.peripherals.keyboard = utils.string_to_keyboard((utils.sanitize_output_text(&keyboard, false) catch {
-            try gui.dialog(@src(), .{ .title = "Error", .message = "Please enter a valid keyboard model name!" });
-            return;
-        }).items) catch {
-            try gui.dialog(@src(), .{ .title = "Error", .message = "Please enter a valid keyboard model name!" });
-            return;
-        };
-
-        vm.peripherals.mouse = utils.string_to_mouse((utils.sanitize_output_text(&mouse, false) catch {
-            try gui.dialog(@src(), .{ .title = "Error", .message = "Please enter a valid mouse model name!" });
-            return;
-        }).items) catch {
-            try gui.dialog(@src(), .{ .title = "Error", .message = "Please enter a valid mouse model name!" });
-            return;
-        };
-
+        vm.peripherals.keyboard = @enumFromInt(keyboard);
+        vm.peripherals.mouse = @enumFromInt(mouse);
         vm.peripherals.has_mouse_absolute_pointing = has_mouse_absolute_pointing;
 
         // Sanity checks
@@ -603,8 +491,8 @@ fn drives_gui_frame() !void {
         try gui.label(@src(), "Drive {d}:", .{i}, .{ .id_extra = option_index });
 
         try add_bool_option("CD-ROM", &drive_options.is_cdrom);
-        try add_text_option("Bus", &drive_options.bus);
-        try add_text_option("Format", &drive_options.format);
+        try add_combo_option("Bus", &[_][]const u8{ "USB", "IDE", "SATA", "VirtIO" }, &drive_options.bus);
+        try add_combo_option("Format", &[_][]const u8{ "Raw", "QCOW2", "VMDK", "VDI", "VHD" }, &drive_options.format);
         try add_text_option("Path", &drive_options.path);
     }
 
@@ -614,23 +502,8 @@ fn drives_gui_frame() !void {
             var drive_options = drives_options[i];
 
             drive.*.is_cdrom = drive_options.is_cdrom;
-
-            drive.*.bus = utils.string_to_drive_bus((utils.sanitize_output_text(&drive_options.bus, false) catch {
-                try gui.dialog(@src(), .{ .title = "Error", .message = "Please enter a valid drive bus name!" });
-                return;
-            }).items) catch {
-                try gui.dialog(@src(), .{ .title = "Error", .message = "Please enter a valid drive bus name!" });
-                return;
-            };
-
-            drive.*.format = utils.string_to_drive_format((utils.sanitize_output_text(&drive_options.format, false) catch {
-                try gui.dialog(@src(), .{ .title = "Error", .message = "Please enter a valid drive format name!" });
-                return;
-            }).items) catch {
-                try gui.dialog(@src(), .{ .title = "Error", .message = "Please enter a valid drive format name!" });
-                return;
-            };
-
+            drive.*.bus = @enumFromInt(drive_options.bus);
+            drive.*.format = @enumFromInt(drive_options.format);
             drive.*.path = (utils.sanitize_output_text(&drive_options.path, false) catch {
                 try gui.dialog(@src(), .{ .title = "Error", .message = "Please enter a valid drive path!" });
                 return;
@@ -693,6 +566,33 @@ fn add_text_option(option_name: []const u8, buffer: []u8) !void {
     option_index += 1;
 
     try gui.textEntry(@src(), .{ .text = buffer }, .{ .expand = .horizontal, .id_extra = option_index });
+    option_index += 1;
+}
+
+fn add_combo_option(option_name: []const u8, options: []const []const u8, index: *u64) !void {
+    try gui.label(@src(), "{s}:", .{option_name}, .{ .id_extra = option_index });
+    option_index += 1;
+
+    var m = try gui.menu(@src(), .horizontal, .{ .background = true, .expand = .horizontal, .id_extra = option_index });
+    defer m.deinit();
+    option_index += 1;
+
+    if (try gui.menuItemLabel(@src(), options[index.*], true, .{ .expand = .horizontal, .id_extra = option_index, .background = true })) |r| {
+        var fw = try gui.popup(@src(), gui.Rect.fromPoint(gui.Point{ .x = r.x, .y = r.y + r.h }), .{ .id_extra = option_index });
+        defer fw.deinit();
+        option_index += 1;
+
+        for (0..options.len) |i| {
+            if (try gui.menuItemLabel(@src(), options[i], false, .{ .id_extra = option_index }) != null) {
+                index.* = i;
+
+                gui.menuGet().?.close();
+            }
+
+            option_index += 1;
+        }
+    }
+
     option_index += 1;
 }
 

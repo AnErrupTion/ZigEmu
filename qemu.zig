@@ -8,16 +8,31 @@ const permanent_buffers = @import("permanent_buffers.zig");
 pub fn get_arguments(vm: structs.VirtualMachine, drives: []*structs.Drive) !std.ArrayList([]const u8) {
     var list = std.ArrayList([]const u8).init(main.gpa);
 
-    var qemu_name = try std.fmt.allocPrint(main.gpa, "qemu-system-{s}", .{utils.architecture_to_string(vm.basic.architecture)});
+    const architecture_str = switch (vm.basic.architecture) {
+        .amd64 => "x86_64",
+    };
+    const chipset_str = switch (vm.basic.chipset) {
+        .i440fx => "pc",
+        .q35 => "q35",
+    };
+    const cpu_str = switch (vm.processor.cpu) {
+        .host => "host",
+        .max => "max",
+    };
+    const display_str = switch (vm.graphics.display) {
+        .none => "none",
+        .sdl => "sdl",
+        .gtk => "gtk",
+        .spice => "spice-app",
+    };
+
+    var qemu_name = try std.fmt.allocPrint(main.gpa, "qemu-system-{s}", .{architecture_str});
     var name = try std.fmt.allocPrint(main.gpa, "{s},process={s}", .{ vm.basic.name, vm.basic.name });
-    var cpu = if (vm.processor.features.len > 0) try std.fmt.allocPrint(main.gpa, "{s},{s}", .{ utils.cpu_to_string(vm.processor.cpu), vm.processor.features }) else utils.cpu_to_string(vm.processor.cpu);
+    var cpu = if (vm.processor.features.len > 0) try std.fmt.allocPrint(main.gpa, "{s},{s}", .{ cpu_str, vm.processor.features }) else cpu_str;
     var ram = try std.fmt.allocPrint(main.gpa, "{d}M", .{vm.memory.ram});
     var smp = try std.fmt.allocPrint(main.gpa, "cores={d},threads={d}", .{ vm.processor.cores, vm.processor.threads });
-    var display = try std.fmt.allocPrint(main.gpa, "{s},gl={s}", .{ utils.display_to_string(vm.graphics.display), if (vm.graphics.has_graphics_acceleration) "on" else "off" });
-
-    var machine = utils.chipset_to_string(vm.basic.chipset);
-    var pci_bus_type = if (std.mem.eql(u8, machine, "q35")) "pcie" else "pci";
-
+    var display = try std.fmt.allocPrint(main.gpa, "{s},gl={s}", .{ display_str, if (vm.graphics.has_graphics_acceleration) "on" else "off" });
+    var pci_bus_type = if (vm.basic.chipset == .q35) "pcie" else "pci";
     var ahci_bus: u64 = 0;
 
     try permanent_buffers.arrays.append(qemu_name);
@@ -44,7 +59,7 @@ pub fn get_arguments(vm: structs.VirtualMachine, drives: []*structs.Drive) !std.
     }
 
     try list.append("-machine");
-    try list.append(machine);
+    try list.append(chipset_str);
 
     try list.append("-name");
     try list.append(name);
@@ -62,16 +77,14 @@ pub fn get_arguments(vm: structs.VirtualMachine, drives: []*structs.Drive) !std.
     try list.append(display);
 
     if (vm.basic.usb_type != .none) {
-        var usb = try std.fmt.allocPrint(main.gpa, "{s},bus={s}.0,id=usb", .{
-            switch (vm.basic.usb_type) {
-                .ohci => "pci-ohci",
-                .uhci => "piix3-usb-uhci",
-                .ehci => "usb-ehci",
-                .xhci => "qemu-xhci",
-                else => unreachable,
-            },
-            pci_bus_type,
-        });
+        const usb_type_str = switch (vm.basic.usb_type) {
+            .ohci => "pci-ohci",
+            .uhci => "piix3-usb-uhci",
+            .ehci => "usb-ehci",
+            .xhci => "qemu-xhci",
+            else => unreachable,
+        };
+        var usb = try std.fmt.allocPrint(main.gpa, "{s},bus={s}.0,id=usb", .{ usb_type_str, pci_bus_type });
 
         try permanent_buffers.arrays.append(usb);
 
@@ -305,7 +318,14 @@ pub fn get_arguments(vm: structs.VirtualMachine, drives: []*structs.Drive) !std.
             continue;
         }
 
-        var disk = try std.fmt.allocPrint(main.gpa, "if=none,file={s},format={s},id=drive{d}", .{ drive.path, utils.drive_format_to_string(drive.format), i });
+        const drive_format_str = switch (drive.format) {
+            .raw => "raw",
+            .qcow2 => "qcow2",
+            .vmdk => "vmdk",
+            .vdi => "vdi",
+            .vhd => "vhd",
+        };
+        var disk = try std.fmt.allocPrint(main.gpa, "if=none,file={s},format={s},id=drive{d}", .{ drive.path, drive_format_str, i });
 
         try permanent_buffers.arrays.append(disk);
 
