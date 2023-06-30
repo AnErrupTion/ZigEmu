@@ -3,6 +3,7 @@ const gui = @import("gui");
 const Backend = @import("SDLBackend");
 const ini = @import("ini");
 const structs = @import("structs.zig");
+const utils = @import("utils.zig");
 const new_virtual_machine = @import("new_virtual_machine.zig");
 const edit_virtual_machine = @import("edit_virtual_machine.zig");
 const permanent_buffers = @import("permanent_buffers.zig");
@@ -26,20 +27,23 @@ pub fn main() !void {
     virtual_machines = std.ArrayList(structs.VirtualMachine).init(gpa);
     defer virtual_machines.deinit();
 
-    var directories = try std.fs.cwd().openIterableDir("VMs", .{});
-    defer directories.close();
+    // Iterate over all directories inside the "VMs" directory
+    {
+        var directories = try std.fs.cwd().openIterableDir("VMs", .{});
+        defer directories.close();
 
-    var iterator = directories.iterate();
+        var iterator = directories.iterate();
 
-    while (try iterator.next()) |directory| {
-        var files = try virtual_machines_directory.openDir(directory.name, .{});
-        defer files.close();
+        while (try iterator.next()) |directory| {
+            var files = try virtual_machines_directory.openDir(directory.name, .{});
+            defer files.close();
 
-        var config = try files.readFileAlloc(gpa, "config.ini", 16 * 1024);
-        var vm = try ini.readToStruct(structs.VirtualMachine, config);
+            var config = try files.readFileAlloc(gpa, "config.ini", 16 * 1024);
+            var vm = try ini.readToStruct(structs.VirtualMachine, config);
 
-        try permanent_buffers.arrays.append(config);
-        try virtual_machines.append(vm);
+            try permanent_buffers.arrays.append(config);
+            try virtual_machines.append(vm);
+        }
     }
 
     try virtual_machines_directory.setAsCwd();
@@ -57,7 +61,7 @@ pub fn main() !void {
 
     win.theme = &gui.Adwaita.dark;
 
-    main_loop: while (true) {
+    while (true) {
         var arena_allocator = std.heap.ArenaAllocator.init(std.heap.page_allocator);
         defer arena_allocator.deinit();
 
@@ -68,7 +72,7 @@ pub fn main() !void {
         try win.begin(arena, nstime);
 
         const quit = try backend.addAllEvents(&win);
-        if (quit) break :main_loop;
+        if (quit) break;
 
         try gui_frame();
 
@@ -108,6 +112,17 @@ fn gui_frame() !void {
                 gui.menuGet().?.close();
             } else if (gui.themeGet() == &gui.Adwaita.light and try gui.menuItemLabel(@src(), "Use Dark Theme", false, .{}) != null) {
                 gui.themeSet(&gui.Adwaita.dark);
+                gui.menuGet().?.close();
+            }
+        }
+
+        if (try gui.menuItemLabel(@src(), "Help", true, .{ .expand = .none })) |r| {
+            var fw = try gui.popup(@src(), gui.Rect.fromPoint(gui.Point{ .x = r.x, .y = r.y + r.h }), .{});
+            defer fw.deinit();
+
+            if (try gui.menuItemLabel(@src(), "About", false, .{}) != null) {
+                try gui.dialog(@src(), .{ .title = "About", .message = "ZigEmu v" ++ utils.VERSION ++ " - A simple QEMU frontend, made in Zig." });
+
                 gui.menuGet().?.close();
             }
         }

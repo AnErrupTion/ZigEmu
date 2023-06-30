@@ -107,7 +107,7 @@ pub const Drive = struct {
     path: []const u8,
 };
 
-// TODO: "removable" drive type
+// TODO: "removable" drive type for USB drives
 // TODO: Controllers? (more modular)
 // TODO: PCI/USB host devices
 pub const VirtualMachine = struct {

@@ -5,6 +5,8 @@ const structs = @import("structs.zig");
 pub const SanitizationError = error{ CannotSanitizeInput, OutOfMemory };
 pub const ConversionError = error{CannotConvertInput};
 
+pub const VERSION = "1.0.0";
+
 pub fn sanitize_output_text(buffer: []u8, is_name: bool) SanitizationError!std.ArrayList(u8) {
     if (is_name and buffer[0] == 0) {
         return SanitizationError.CannotSanitizeInput;
