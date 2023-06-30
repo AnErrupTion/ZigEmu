@@ -52,6 +52,8 @@ var drives_options = std.mem.zeroes([5]struct {
     is_cdrom: bool,
     bus: u64,
     format: u64,
+    cache: u64,
+    is_ssd: bool,
     path: [512]u8,
 });
 
@@ -259,6 +261,8 @@ fn init_drives() !void {
         drive_options.*.is_cdrom = drive.is_cdrom;
         drive_options.*.bus = @intFromEnum(drive.bus);
         drive_options.*.format = @intFromEnum(drive.format);
+        drive_options.*.cache = @intFromEnum(drive.cache);
+        drive_options.*.is_ssd = drive.is_ssd;
         set_buffer(&drive_options.path, drive.path);
     }
 }
@@ -493,6 +497,8 @@ fn drives_gui_frame() !void {
         try add_bool_option("CD-ROM", &drive_options.is_cdrom);
         try add_combo_option("Bus", &[_][]const u8{ "USB", "IDE", "SATA", "VirtIO" }, &drive_options.bus);
         try add_combo_option("Format", &[_][]const u8{ "Raw", "QCOW2", "VMDK", "VDI", "VHD" }, &drive_options.format);
+        try add_combo_option("Cache", &[_][]const u8{ "None", "Writeback", "Writethrough", "Directsync", "Unsafe" }, &drive_options.cache);
+        try add_bool_option("SSD", &drive_options.is_ssd);
         try add_text_option("Path", &drive_options.path);
     }
 
@@ -504,6 +510,8 @@ fn drives_gui_frame() !void {
             drive.*.is_cdrom = drive_options.is_cdrom;
             drive.*.bus = @enumFromInt(drive_options.bus);
             drive.*.format = @enumFromInt(drive_options.format);
+            drive.*.cache = @enumFromInt(drive_options.cache);
+            drive.*.is_ssd = drive_options.is_ssd;
             drive.*.path = (utils.sanitize_output_text(&drive_options.path, false) catch {
                 try gui.dialog(@src(), .{ .title = "Error", .message = "Please enter a valid drive path!" });
                 return;
@@ -583,7 +591,7 @@ fn add_combo_option(option_name: []const u8, options: []const []const u8, index:
         option_index += 1;
 
         for (0..options.len) |i| {
-            if (try gui.menuItemLabel(@src(), options[i], false, .{ .id_extra = option_index }) != null) {
+            if (try gui.menuItemLabel(@src(), options[i], false, .{ .id_extra = option_index, .min_size_content = .{ .w = r.w } }) != null) {
                 index.* = i;
 
                 gui.menuGet().?.close();

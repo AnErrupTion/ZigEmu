@@ -325,7 +325,14 @@ pub fn get_arguments(vm: structs.VirtualMachine, drives: []*structs.Drive) !std.
             .vdi => "vdi",
             .vhd => "vhd",
         };
-        var disk = try std.fmt.allocPrint(main.gpa, "if=none,file={s},format={s},id=drive{d}", .{ drive.path, drive_format_str, i });
+        const drive_cache_str = switch (drive.cache) {
+            .none => "none",
+            .writeback => "writeback",
+            .writethrough => "writethrough",
+            .directsync => "directsync",
+            .unsafe => "unsafe",
+        };
+        var disk = try std.fmt.allocPrint(main.gpa, "if=none,file={s},format={s},cache={s},discard={s},id=drive{d}", .{ drive.path, drive_format_str, drive_cache_str, if (drive.is_ssd) "unmap" else "ignore", i });
 
         try permanent_buffers.arrays.append(disk);
 

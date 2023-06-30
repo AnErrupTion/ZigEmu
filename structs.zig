@@ -90,15 +90,24 @@ pub const DriveFormat = enum {
     vhd,
 };
 
+pub const DriveCache = enum {
+    none,
+    writeback,
+    writethrough,
+    directsync,
+    unsafe,
+};
+
 pub const Drive = struct {
     is_cdrom: bool,
     bus: DriveBus,
     format: DriveFormat,
+    cache: DriveCache,
+    is_ssd: bool,
     path: []const u8,
 };
 
 // TODO: "removable" drive type
-// TODO: "cache" and "discard" drive settings
 // TODO: Controllers? (more modular)
 // TODO: PCI/USB host devices
 pub const VirtualMachine = struct {

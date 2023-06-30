@@ -84,6 +84,8 @@ pub fn gui_frame() !void {
             .is_cdrom = false,
             .bus = .ide,
             .format = .raw,
+            .cache = .none,
+            .is_ssd = false,
             .path = "",
         };
 
@@ -92,6 +94,8 @@ pub fn gui_frame() !void {
                 .is_cdrom = true,
                 .bus = .sata,
                 .format = .raw,
+                .cache = .none,
+                .is_ssd = false,
                 .path = actual_boot_image.items,
             };
         }
@@ -146,6 +150,8 @@ pub fn gui_frame() !void {
                 .is_cdrom = false,
                 .bus = .sata,
                 .format = .raw,
+                .cache = .none,
+                .is_ssd = false,
                 .path = "disk.img",
             },
             .drive1 = boot_drive,
@@ -153,18 +159,24 @@ pub fn gui_frame() !void {
                 .is_cdrom = false,
                 .bus = .ide,
                 .format = .raw,
+                .cache = .none,
+                .is_ssd = false,
                 .path = "",
             },
             .drive3 = .{
                 .is_cdrom = false,
                 .bus = .ide,
                 .format = .raw,
+                .cache = .none,
+                .is_ssd = false,
                 .path = "",
             },
             .drive4 = .{
                 .is_cdrom = false,
                 .bus = .ide,
                 .format = .raw,
+                .cache = .none,
+                .is_ssd = false,
                 .path = "",
             },
         };
