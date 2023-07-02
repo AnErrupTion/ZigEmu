@@ -39,6 +39,8 @@ pub const Display = enum {
     sdl,
     gtk,
     spice,
+    cocoa,
+    dbus,
 };
 
 pub const Gpu = enum {
@@ -51,8 +53,14 @@ pub const Gpu = enum {
 
 pub const HostDevice = enum {
     none,
+    sdl,
     alsa,
+    oss,
     pulseaudio,
+    sndio,
+    coreaudio,
+    directsound,
+    wav,
 };
 
 pub const Sound = enum {

@@ -24,6 +24,8 @@ pub fn get_arguments(vm: structs.VirtualMachine, drives: []*structs.Drive) !std.
         .sdl => "sdl",
         .gtk => "gtk",
         .spice => "spice-app",
+        .cocoa => "cocoa",
+        .dbus => "dbus",
     };
 
     var qemu_name = try std.fmt.allocPrint(main.gpa, "qemu-system-{s}", .{architecture_str});
@@ -195,81 +197,106 @@ pub fn get_arguments(vm: structs.VirtualMachine, drives: []*structs.Drive) !std.
         }
     }
 
-    if (vm.audio.host_device != .none) {
-        switch (vm.audio.host_device) {
-            .alsa => {
-                try list.append("-audiodev");
-                try list.append("alsa,id=hostdev");
-            },
-            .pulseaudio => {
-                try list.append("-audiodev");
-                try list.append("pa,id=hostdev");
-            },
-            else => unreachable,
-        }
+    switch (vm.audio.host_device) {
+        .none => {
+            try list.append("-audiodev");
+            try list.append("none,id=hostdev");
+        },
+        .sdl => {
+            try list.append("-audiodev");
+            try list.append("sdl,id=hostdev");
+        },
+        .alsa => {
+            try list.append("-audiodev");
+            try list.append("alsa,id=hostdev");
+        },
+        .oss => {
+            try list.append("-audiodev");
+            try list.append("oss,id=hostdev");
+        },
+        .pulseaudio => {
+            try list.append("-audiodev");
+            try list.append("pa,id=hostdev");
+        },
+        .sndio => {
+            try list.append("-audiodev");
+            try list.append("sndio,id=hostdev");
+        },
+        .coreaudio => {
+            try list.append("-audiodev");
+            try list.append("coreaudio,id=hostdev");
+        },
+        .directsound => {
+            try list.append("-audiodev");
+            try list.append("dsound,id=hostdev");
+        },
+        .wav => {
+            try list.append("-audiodev");
+            try list.append("wav,id=hostdev");
+        },
+    }
 
-        switch (vm.audio.sound) {
-            .sb16 => {
-                if (vm.audio.has_input) unreachable;
-                if (!vm.audio.has_output) unreachable;
+    switch (vm.audio.sound) {
+        .sb16 => {
+            if (vm.audio.has_input) unreachable;
+            if (!vm.audio.has_output) unreachable;
 
+            try list.append("-device");
+            try list.append("sb16,audiodev=hostdev");
+        },
+        .ac97 => {
+            if (vm.audio.has_input) unreachable;
+            if (!vm.audio.has_output) unreachable;
+
+            try list.append("-device");
+            try list.append("AC97,audiodev=hostdev");
+        },
+        .ich6 => {
+            var sound = try std.fmt.allocPrint(main.gpa, "intel-hda,bus={s}.0,id=hda", .{pci_bus_type});
+
+            try permanent_buffers.arrays.append(sound);
+
+            try list.append("-device");
+            try list.append(sound);
+
+            if (vm.audio.has_input and vm.audio.has_output) {
                 try list.append("-device");
-                try list.append("sb16,audiodev=hostdev");
-            },
-            .ac97 => {
-                if (vm.audio.has_input) unreachable;
-                if (!vm.audio.has_output) unreachable;
-
+                try list.append("hda-duplex,audiodev=hostdev,bus=hda.0");
+            } else if (!vm.audio.has_input and vm.audio.has_output) {
                 try list.append("-device");
-                try list.append("AC97,audiodev=hostdev");
-            },
-            .ich6 => {
-                var sound = try std.fmt.allocPrint(main.gpa, "intel-hda,bus={s}.0,id=hda", .{pci_bus_type});
-
-                try permanent_buffers.arrays.append(sound);
-
+                try list.append("hda-output,audiodev=hostdev,bus=hda.0");
+            } else if (vm.audio.has_input and !vm.audio.has_output) {
                 try list.append("-device");
-                try list.append(sound);
+                try list.append("hda-input,audiodev=hostdev,bus=hda.0");
+            }
+        },
+        .ich9 => {
+            var sound = try std.fmt.allocPrint(main.gpa, "ich9-intel-hda,bus={s}.0,id=hda", .{pci_bus_type});
 
-                if (vm.audio.has_input and vm.audio.has_output) {
-                    try list.append("-device");
-                    try list.append("hda-duplex,audiodev=hostdev,bus=hda.0");
-                } else if (!vm.audio.has_input and vm.audio.has_output) {
-                    try list.append("-device");
-                    try list.append("hda-output,audiodev=hostdev,bus=hda.0");
-                } else if (vm.audio.has_input and !vm.audio.has_output) {
-                    try list.append("-device");
-                    try list.append("hda-input,audiodev=hostdev,bus=hda.0");
-                }
-            },
-            .ich9 => {
-                var sound = try std.fmt.allocPrint(main.gpa, "ich9-intel-hda,bus={s}.0,id=hda", .{pci_bus_type});
+            try permanent_buffers.arrays.append(sound);
 
-                try permanent_buffers.arrays.append(sound);
+            try list.append("-device");
+            try list.append(sound);
 
+            if (vm.audio.has_input and vm.audio.has_output) {
                 try list.append("-device");
-                try list.append(sound);
-
-                if (vm.audio.has_input and vm.audio.has_output) {
-                    try list.append("-device");
-                    try list.append("hda-duplex,audiodev=hostdev,bus=hda.0");
-                } else if (!vm.audio.has_input and vm.audio.has_output) {
-                    try list.append("-device");
-                    try list.append("hda-output,audiodev=hostdev,bus=hda.0");
-                } else if (vm.audio.has_input and !vm.audio.has_output) {
-                    try list.append("-device");
-                    try list.append("hda-input,audiodev=hostdev,bus=hda.0");
-                }
-            },
-            .usb => {
-                if (vm.audio.has_input) unreachable;
-                if (!vm.audio.has_output) unreachable;
-                if (vm.basic.usb_type == .none) unreachable;
-
+                try list.append("hda-duplex,audiodev=hostdev,bus=hda.0");
+            } else if (!vm.audio.has_input and vm.audio.has_output) {
                 try list.append("-device");
-                try list.append("usb-audio,audiodev=hostdev,bus=usb.0");
-            },
-        }
+                try list.append("hda-output,audiodev=hostdev,bus=hda.0");
+            } else if (vm.audio.has_input and !vm.audio.has_output) {
+                try list.append("-device");
+                try list.append("hda-input,audiodev=hostdev,bus=hda.0");
+            }
+        },
+        .usb => {
+            if (vm.audio.has_input) unreachable;
+            if (!vm.audio.has_output) unreachable;
+            if (vm.basic.usb_type == .none) unreachable;
+
+            try list.append("-device");
+            try list.append("usb-audio,audiodev=hostdev,bus=usb.0");
+        },
     }
 
     if (vm.peripherals.keyboard != .none) {

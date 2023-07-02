@@ -1,10 +1,12 @@
 const std = @import("std");
+const builtin = @import("builtin");
 const gui = @import("gui");
 const ini = @import("ini");
 const structs = @import("structs.zig");
 const main = @import("main.zig");
 const utils = @import("utils.zig");
 const qemu = @import("qemu.zig");
+const Tag = std.Target.Os.Tag;
 
 pub var vm: structs.VirtualMachine = undefined;
 pub var show = false;
@@ -395,7 +397,7 @@ fn network_gui_frame() !void {
 fn graphics_gui_frame() !void {
     option_index = 0;
 
-    try utils.add_combo_option("Display", &[_][]const u8{ "None", "SDL", "GTK", "SPICE" }, &display, &option_index);
+    try utils.add_combo_option("Display", &[_][]const u8{ "None", "SDL", "GTK", "SPICE", "Cocoa", "D-Bus" }, &display, &option_index);
     try utils.add_combo_option("GPU", &[_][]const u8{ "None", "VGA", "QXL", "VMware", "VirtIO" }, &gpu, &option_index);
     try utils.add_bool_option("VGA emulation", &has_vga_emulation, &option_index);
     try utils.add_bool_option("Graphics acceleration", &has_graphics_acceleration, &option_index);
@@ -417,6 +419,12 @@ fn graphics_gui_frame() !void {
         } else if (vm.graphics.gpu == .qxl and vm.graphics.has_graphics_acceleration) {
             try gui.dialog(@src(), .{ .title = "Error", .message = "GPU model \"qxl\" doesn't support graphics acceleration." });
             return;
+        } else if (vm.graphics.display == .cocoa and builtin.os.tag != .macos) {
+            try gui.dialog(@src(), .{ .title = "Error", .message = "Display \"cocoa\" is only supported on macOS." });
+            return;
+        } else if (vm.graphics.display == .dbus and builtin.os.tag != .linux and !Tag.isBSD(builtin.os.tag)) {
+            try gui.dialog(@src(), .{ .title = "Error", .message = "Display \"cocoa\" is only supported on Linux/BSD." });
+            return;
         }
 
         // Write to file
@@ -427,7 +435,7 @@ fn graphics_gui_frame() !void {
 fn audio_gui_frame() !void {
     option_index = 0;
 
-    try utils.add_combo_option("Host device", &[_][]const u8{ "None", "ALSA", "PulseAudio" }, &host_device, &option_index);
+    try utils.add_combo_option("Host device", &[_][]const u8{ "None", "SDL", "ALSA", "OSS", "PulseAudio", "sndio", "CoreAudio", "DirectSound", "WAV" }, &host_device, &option_index);
     try utils.add_combo_option("Sound", &[_][]const u8{ "Sound Blaster 16", "AC97", "HDA ICH6", "HDA ICH9", "USB" }, &sound, &option_index);
     try utils.add_bool_option("Input", &has_input, &option_index);
     try utils.add_bool_option("Output", &has_output, &option_index);
@@ -467,6 +475,15 @@ fn audio_gui_frame() !void {
                 try gui.dialog(@src(), .{ .title = "Error", .message = "Sound device \"usb\" requires a USB controller." });
                 return;
             }
+        } else if (builtin.os.tag == .windows and host_device >= 2 and host_device <= 6) {
+            try gui.dialog(@src(), .{ .title = "Error", .message = try std.fmt.bufPrint(&format_buffer, "Audio host device \"{}\" is unsupported by Windows.", .{vm.audio.host_device}) });
+            return;
+        } else if (builtin.os.tag == .macos and ((host_device >= 2 and host_device <= 5) or host_device == 7)) {
+            try gui.dialog(@src(), .{ .title = "Error", .message = try std.fmt.bufPrint(&format_buffer, "Audio host device \"{}\" is unsupported by macOS.", .{vm.audio.host_device}) });
+            return;
+        } else if (host_device == 6 or host_device == 7) {
+            try gui.dialog(@src(), .{ .title = "Error", .message = try std.fmt.bufPrint(&format_buffer, "Audio host device \"{}\" is unsupported by your Unix-based OS.", .{vm.audio.host_device}) });
+            return;
         }
 
         // Write to file
