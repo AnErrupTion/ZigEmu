@@ -21,7 +21,11 @@ pub fn main() !void {
     permanent_buffers.init();
     defer permanent_buffers.deinit();
 
-    virtual_machines_directory = try std.fs.cwd().openDir("VMs", .{});
+    std.fs.cwd().makeDir("VMs") catch {
+        std.debug.print("Warning: VMs directory already exists.", .{});
+    };
+
+    virtual_machines_directory = std.fs.cwd().openDir("VMs", .{}) catch unreachable;
     defer virtual_machines_directory.close();
 
     virtual_machines = std.ArrayList(structs.VirtualMachine).init(gpa);
@@ -29,13 +33,13 @@ pub fn main() !void {
 
     // Iterate over all directories inside the "VMs" directory
     {
-        var directories = try std.fs.cwd().openIterableDir("VMs", .{});
+        var directories = std.fs.cwd().openIterableDir("VMs", .{}) catch unreachable;
         defer directories.close();
 
         var iterator = directories.iterate();
 
         while (try iterator.next()) |directory| {
-            var files = try virtual_machines_directory.openDir(directory.name, .{});
+            var files = virtual_machines_directory.openDir(directory.name, .{}) catch unreachable;
             defer files.close();
 
             var config = try files.readFileAlloc(gpa, "config.ini", 16 * 1024);

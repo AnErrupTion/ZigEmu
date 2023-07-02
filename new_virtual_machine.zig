@@ -40,14 +40,14 @@ pub fn gui_frame() !void {
 
     option_index = 0;
 
-    try add_text_option("Name", &name);
-    try add_text_option("RAM (in MiB)", &ram);
-    try add_text_option("Cores", &cores);
-    try add_text_option("Threads", &threads);
-    try add_text_option("Disk size (in GiB)", &disk);
-    try add_bool_option("Add a boot image", &has_boot_image);
+    try utils.add_text_option("Name", &name, &option_index);
+    try utils.add_text_option("RAM (in MiB)", &ram, &option_index);
+    try utils.add_text_option("Cores", &cores, &option_index);
+    try utils.add_text_option("Threads", &threads, &option_index);
+    try utils.add_text_option("Disk size (in GiB)", &disk, &option_index);
+    try utils.add_bool_option("Add a boot image", &has_boot_image, &option_index);
     if (has_boot_image) {
-        try add_text_option("Boot image", &boot_image);
+        try utils.add_text_option("Boot image", &boot_image, &option_index);
     }
 
     if (try gui.button(@src(), "Create", .{ .expand = .horizontal, .color_style = .accent })) {
@@ -210,17 +210,4 @@ pub fn gui_frame() !void {
 
         show = false;
     }
-}
-
-fn add_text_option(text: []const u8, buffer: []u8) !void {
-    try gui.label(@src(), "{s}:", .{text}, .{ .id_extra = option_index });
-    option_index += 1;
-
-    try gui.textEntry(@src(), .{ .text = buffer }, .{ .expand = .horizontal, .id_extra = option_index });
-    option_index += 1;
-}
-
-fn add_bool_option(text: []const u8, value: *bool) !void {
-    try gui.checkbox(@src(), value, text, .{ .id_extra = option_index });
-    option_index += 1;
 }

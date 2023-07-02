@@ -9,6 +9,8 @@ const qemu = @import("qemu.zig");
 pub var vm: structs.VirtualMachine = undefined;
 pub var show = false;
 
+var format_buffer = std.mem.zeroes([1024]u8);
+
 var drives: []*structs.Drive = undefined;
 
 var vm_directory: std.fs.Dir = undefined;
@@ -270,12 +272,12 @@ fn init_drives() !void {
 fn basic_gui_frame() !void {
     option_index = 0;
 
-    try add_text_option("Name", &name);
-    try add_combo_option("Architecture", &[_][]const u8{"AMD64"}, &architecture);
-    try add_bool_option("Hardware acceleration", &has_acceleration); // TODO: Detect host architecture
-    try add_combo_option("Chipset", &[_][]const u8{ "i440FX", "Q35" }, &chipset);
-    try add_combo_option("USB type", &[_][]const u8{ "None", "OHCI (Open 1.0)", "UHCI (Proprietary 1.0)", "EHCI (2.0)", "XHCI (3.0)" }, &usb_type);
-    try add_bool_option("Use AHCI", &has_ahci);
+    try utils.add_text_option("Name", &name, &option_index);
+    try utils.add_combo_option("Architecture", &[_][]const u8{"AMD64"}, &architecture, &option_index);
+    try utils.add_bool_option("Hardware acceleration", &has_acceleration, &option_index); // TODO: Detect host architecture
+    try utils.add_combo_option("Chipset", &[_][]const u8{ "i440FX", "Q35" }, &chipset, &option_index);
+    try utils.add_combo_option("USB type", &[_][]const u8{ "None", "OHCI (Open 1.0)", "UHCI (Proprietary 1.0)", "EHCI (2.0)", "XHCI (3.0)" }, &usb_type, &option_index);
+    try utils.add_bool_option("Use AHCI", &has_ahci, &option_index);
 
     if (try gui.button(@src(), "Save", .{ .expand = .horizontal, .color_style = .accent })) {
         // Write updated data to struct
@@ -293,12 +295,28 @@ fn basic_gui_frame() !void {
         if (vm.processor.cpu == .host and !vm.basic.has_acceleration) {
             try gui.dialog(@src(), .{ .title = "Error", .message = "CPU model \"host\" requires hardware acceleration." });
             return;
+        } else if (vm.basic.usb_type == .none and vm.network.interface == .usb) {
+            try gui.dialog(@src(), .{ .title = "Error", .message = "Network interface \"usb\" requires a USB controller." });
+            return;
+        } else if (vm.basic.usb_type == .none and vm.audio.sound == .usb) {
+            try gui.dialog(@src(), .{ .title = "Error", .message = "Sound device \"usb\" requires a USB controller." });
+            return;
         } else if (vm.basic.usb_type == .none and vm.peripherals.keyboard == .usb) {
             try gui.dialog(@src(), .{ .title = "Error", .message = "Keyboard model \"usb\" requires a USB controller." });
             return;
         } else if (vm.basic.usb_type == .none and vm.peripherals.mouse == .usb) {
             try gui.dialog(@src(), .{ .title = "Error", .message = "Mouse model \"usb\" requires a USB controller." });
             return;
+        }
+
+        for (drives, 0..) |drive, i| {
+            if (vm.basic.usb_type == .none and drive.bus == .usb) {
+                try gui.dialog(@src(), .{ .title = "Error", .message = try std.fmt.bufPrint(&format_buffer, "Bus \"usb\" of drive {d} requires a USB controller.", .{i}) });
+                return;
+            } else if (!vm.basic.has_ahci and drive.bus == .sata) {
+                try gui.dialog(@src(), .{ .title = "Error", .message = try std.fmt.bufPrint(&format_buffer, "Bus \"sata\" of drive {d} requires a USB controller.", .{i}) });
+                return;
+            }
         }
 
         // Write to file
@@ -309,7 +327,7 @@ fn basic_gui_frame() !void {
 fn memory_gui_frame() !void {
     option_index = 0;
 
-    try add_text_option("RAM (in MiB)", &ram);
+    try utils.add_text_option("RAM (in MiB)", &ram, &option_index);
 
     if (try gui.button(@src(), "Save", .{ .expand = .horizontal, .color_style = .accent })) {
         // Write updated data to struct
@@ -326,10 +344,10 @@ fn memory_gui_frame() !void {
 fn processor_gui_frame() !void {
     option_index = 0;
 
-    try add_combo_option("CPU", &[_][]const u8{ "Host", "Max" }, &cpu);
-    try add_text_option("Features", &features);
-    try add_text_option("Cores", &cores);
-    try add_text_option("Threads", &threads);
+    try utils.add_combo_option("CPU", &[_][]const u8{ "Host", "Max" }, &cpu, &option_index);
+    try utils.add_text_option("Features", &features, &option_index);
+    try utils.add_text_option("Cores", &cores, &option_index);
+    try utils.add_text_option("Threads", &threads, &option_index);
 
     if (try gui.button(@src(), "Save", .{ .expand = .horizontal, .color_style = .accent })) {
         // Write updated data to struct
@@ -361,8 +379,8 @@ fn processor_gui_frame() !void {
 fn network_gui_frame() !void {
     option_index = 0;
 
-    try add_combo_option("Type", &[_][]const u8{ "None", "NAT" }, &network_type);
-    try add_combo_option("Interface", &[_][]const u8{ "RTL8139", "E1000", "E1000e", "VMware", "USB", "VirtIO" }, &interface);
+    try utils.add_combo_option("Type", &[_][]const u8{ "None", "NAT" }, &network_type, &option_index);
+    try utils.add_combo_option("Interface", &[_][]const u8{ "RTL8139", "E1000", "E1000e", "VMware", "USB", "VirtIO" }, &interface, &option_index);
 
     if (try gui.button(@src(), "Save", .{ .expand = .horizontal, .color_style = .accent })) {
         // Write updated data to struct
@@ -377,10 +395,10 @@ fn network_gui_frame() !void {
 fn graphics_gui_frame() !void {
     option_index = 0;
 
-    try add_combo_option("Display", &[_][]const u8{ "None", "SDL", "GTK", "SPICE" }, &display);
-    try add_combo_option("GPU", &[_][]const u8{ "None", "VGA", "QXL", "VMware", "VirtIO" }, &gpu);
-    try add_bool_option("VGA emulation", &has_vga_emulation);
-    try add_bool_option("Graphics acceleration", &has_graphics_acceleration);
+    try utils.add_combo_option("Display", &[_][]const u8{ "None", "SDL", "GTK", "SPICE" }, &display, &option_index);
+    try utils.add_combo_option("GPU", &[_][]const u8{ "None", "VGA", "QXL", "VMware", "VirtIO" }, &gpu, &option_index);
+    try utils.add_bool_option("VGA emulation", &has_vga_emulation, &option_index);
+    try utils.add_bool_option("Graphics acceleration", &has_graphics_acceleration, &option_index);
 
     if (try gui.button(@src(), "Save", .{ .expand = .horizontal, .color_style = .accent })) {
         // Write updated data to struct
@@ -409,10 +427,10 @@ fn graphics_gui_frame() !void {
 fn audio_gui_frame() !void {
     option_index = 0;
 
-    try add_combo_option("Host device", &[_][]const u8{ "None", "ALSA", "PulseAudio" }, &host_device);
-    try add_combo_option("Sound", &[_][]const u8{ "Sound Blaster 16", "AC97", "HDA ICH6", "HDA ICH9", "USB" }, &sound);
-    try add_bool_option("Input", &has_input);
-    try add_bool_option("Output", &has_output);
+    try utils.add_combo_option("Host device", &[_][]const u8{ "None", "ALSA", "PulseAudio" }, &host_device, &option_index);
+    try utils.add_combo_option("Sound", &[_][]const u8{ "Sound Blaster 16", "AC97", "HDA ICH6", "HDA ICH9", "USB" }, &sound, &option_index);
+    try utils.add_bool_option("Input", &has_input, &option_index);
+    try utils.add_bool_option("Output", &has_output, &option_index);
 
     if (try gui.button(@src(), "Save", .{ .expand = .horizontal, .color_style = .accent })) {
         // Write updated data to struct
@@ -459,9 +477,9 @@ fn audio_gui_frame() !void {
 fn peripherals_gui_frame() !void {
     option_index = 0;
 
-    try add_combo_option("Keyboard", &[_][]const u8{ "None", "USB", "VirtIO" }, &keyboard);
-    try add_combo_option("Mouse", &[_][]const u8{ "None", "USB", "VirtIO" }, &mouse);
-    try add_bool_option("Absolute mouse pointing", &has_mouse_absolute_pointing);
+    try utils.add_combo_option("Keyboard", &[_][]const u8{ "None", "USB", "VirtIO" }, &keyboard, &option_index);
+    try utils.add_combo_option("Mouse", &[_][]const u8{ "None", "USB", "VirtIO" }, &mouse, &option_index);
+    try utils.add_bool_option("Absolute mouse pointing", &has_mouse_absolute_pointing, &option_index);
 
     if (try gui.button(@src(), "Save", .{ .expand = .horizontal, .color_style = .accent })) {
         // Write updated data to struct
@@ -494,12 +512,12 @@ fn drives_gui_frame() !void {
 
         try gui.label(@src(), "Drive {d}:", .{i}, .{ .id_extra = option_index });
 
-        try add_bool_option("CD-ROM", &drive_options.is_cdrom);
-        try add_combo_option("Bus", &[_][]const u8{ "USB", "IDE", "SATA", "VirtIO" }, &drive_options.bus);
-        try add_combo_option("Format", &[_][]const u8{ "Raw", "QCOW2", "VMDK", "VDI", "VHD" }, &drive_options.format);
-        try add_combo_option("Cache", &[_][]const u8{ "None", "Writeback", "Writethrough", "Directsync", "Unsafe" }, &drive_options.cache);
-        try add_bool_option("SSD", &drive_options.is_ssd);
-        try add_text_option("Path", &drive_options.path);
+        try utils.add_bool_option("CD-ROM", &drive_options.is_cdrom, &option_index);
+        try utils.add_combo_option("Bus", &[_][]const u8{ "USB", "IDE", "SATA", "VirtIO" }, &drive_options.bus, &option_index);
+        try utils.add_combo_option("Format", &[_][]const u8{ "Raw", "QCOW2", "VMDK", "VDI", "VHD" }, &drive_options.format, &option_index);
+        try utils.add_combo_option("Cache", &[_][]const u8{ "None", "Writeback", "Writethrough", "Directsync", "Unsafe" }, &drive_options.cache, &option_index);
+        try utils.add_bool_option("SSD", &drive_options.is_ssd, &option_index);
+        try utils.add_text_option("Path", &drive_options.path, &option_index);
     }
 
     if (try gui.button(@src(), "Save", .{ .expand = .horizontal, .color_style = .accent })) {
@@ -519,13 +537,16 @@ fn drives_gui_frame() !void {
 
             // Sanity checks
             if (drive.bus == .usb and vm.basic.usb_type == .none) {
-                try gui.dialog(@src(), .{ .title = "Error", .message = "Drive bus \"usb\" requires a USB controller." });
+                try gui.dialog(@src(), .{ .title = "Error", .message = try std.fmt.bufPrint(&format_buffer, "Bus \"usb\" of drive {d} requires a USB controller.", .{i}) });
+                return;
+            } else if (drive.bus == .sata and !vm.basic.has_ahci) {
+                try gui.dialog(@src(), .{ .title = "Error", .message = try std.fmt.bufPrint(&format_buffer, "Bus \"sata\" of drive {d} requires a SATA controller.", .{i}) });
                 return;
             } else if (drive.bus == .usb and drive.is_cdrom) {
-                try gui.dialog(@src(), .{ .title = "Error", .message = "Drive bus \"usb\" cannot have a CD-ROM drive." });
+                try gui.dialog(@src(), .{ .title = "Error", .message = try std.fmt.bufPrint(&format_buffer, "Bus \"usb\" of drive {d} cannot have a CD-ROM drive.", .{i}) });
                 return;
             } else if (drive.bus == .virtio and drive.is_cdrom) {
-                try gui.dialog(@src(), .{ .title = "Error", .message = "Drive bus \"virtio\" cannot have a CD-ROM drive." });
+                try gui.dialog(@src(), .{ .title = "Error", .message = try std.fmt.bufPrint(&format_buffer, "Bus \"virtio\" of drive {d} cannot have a CD-ROM drive.", .{i}) });
                 return;
             }
         }
@@ -567,44 +588,4 @@ fn set_buffer(buffer: []u8, value: []const u8) void {
         buffer[index] = c;
         index += 1;
     }
-}
-
-fn add_text_option(option_name: []const u8, buffer: []u8) !void {
-    try gui.label(@src(), "{s}:", .{option_name}, .{ .id_extra = option_index });
-    option_index += 1;
-
-    try gui.textEntry(@src(), .{ .text = buffer }, .{ .expand = .horizontal, .id_extra = option_index });
-    option_index += 1;
-}
-
-fn add_combo_option(option_name: []const u8, options: []const []const u8, index: *u64) !void {
-    try gui.label(@src(), "{s}:", .{option_name}, .{ .id_extra = option_index });
-    option_index += 1;
-
-    var m = try gui.menu(@src(), .horizontal, .{ .background = true, .expand = .horizontal, .id_extra = option_index });
-    defer m.deinit();
-    option_index += 1;
-
-    if (try gui.menuItemLabel(@src(), options[index.*], true, .{ .expand = .horizontal, .id_extra = option_index, .background = true })) |r| {
-        var fw = try gui.popup(@src(), gui.Rect.fromPoint(gui.Point{ .x = r.x, .y = r.y + r.h }), .{ .id_extra = option_index });
-        defer fw.deinit();
-        option_index += 1;
-
-        for (0..options.len) |i| {
-            if (try gui.menuItemLabel(@src(), options[i], false, .{ .id_extra = option_index, .min_size_content = .{ .w = r.w } }) != null) {
-                index.* = i;
-
-                gui.menuGet().?.close();
-            }
-
-            option_index += 1;
-        }
-    }
-
-    option_index += 1;
-}
-
-fn add_bool_option(option_name: []const u8, value: *bool) !void {
-    try gui.checkbox(@src(), value, option_name, .{ .id_extra = option_index });
-    option_index += 1;
 }
