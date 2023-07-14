@@ -158,7 +158,8 @@ pub fn get_arguments(vm: structs.VirtualMachine, drives: []*structs.Drive) !std.
         .dbus => "dbus",
     };
 
-    var qemu_path = try std.fmt.allocPrint(main.gpa, "{s}{s}qemu-system-{s}", .{ vm.qemu.qemu_path, if (!std.mem.endsWith(u8, vm.qemu.qemu_path, std.fs.path.sep_str)) std.fs.path.sep_str else "", architecture_str });
+    var qemu_path_separator = if (vm.qemu.override_qemu_path and !std.mem.endsWith(u8, vm.qemu.qemu_path, std.fs.path.sep_str)) std.fs.path.sep_str else "";
+    var qemu_path = try std.fmt.allocPrint(main.gpa, "{s}{s}qemu-system-{s}", .{ vm.qemu.qemu_path, qemu_path_separator, architecture_str });
     var name = try std.fmt.allocPrint(main.gpa, "{s},process={s}", .{ vm.basic.name, vm.basic.name });
     var cpu = if (vm.processor.features.len > 0) try std.fmt.allocPrint(main.gpa, "{s},{s}", .{ cpu_str, vm.processor.features }) else cpu_str;
     var ram = try std.fmt.allocPrint(main.gpa, "{d}M", .{vm.memory.ram});
