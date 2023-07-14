@@ -664,6 +664,8 @@ fn drives_gui_frame() !void {
         try utils.add_bool_option("SSD", &drive_options.is_ssd, &option_index);
         try utils.add_text_option("Path", &drive_options.path, &option_index);
 
+        try gui.separator(@src(), .{ .expand = .horizontal, .id_extra = option_index });
+
         // First sanity checks
         if (drive_options.bus == 0 or drive_options.bus == 3) drive_options.*.is_cdrom = false;
     }
