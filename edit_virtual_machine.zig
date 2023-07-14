@@ -118,7 +118,7 @@ pub fn gui_frame() !void {
     defer hbox.deinit();
 
     {
-        var vbox = try gui.box(@src(), .vertical, .{ .expand = .both });
+        var vbox = try gui.box(@src(), .vertical, .{});
         defer vbox.deinit();
 
         if (try gui.button(@src(), "Basic", .{ .expand = .horizontal })) {
@@ -165,7 +165,7 @@ pub fn gui_frame() !void {
     }
 
     {
-        var vbox = try gui.box(@src(), .vertical, .{ .expand = .both });
+        var vbox = try gui.box(@src(), .vertical, .{ .expand = .both, .padding = .{ .x = 20, .y = 20, .w = 20, .h = 20 } });
         defer vbox.deinit();
 
         switch (setting) {
