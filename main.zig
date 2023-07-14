@@ -95,11 +95,11 @@ fn gui_frame() !void {
         var m = try gui.menu(@src(), .horizontal, .{ .background = true, .expand = .horizontal });
         defer m.deinit();
 
-        if (try gui.menuItemLabel(@src(), "File", true, .{ .expand = .none })) |r| {
+        if (try gui.menuItemLabel(@src(), "File", .{ .submenu = true }, .{ .expand = .none })) |r| {
             var fw = try gui.popup(@src(), gui.Rect.fromPoint(gui.Point{ .x = r.x, .y = r.y + r.h }), .{});
             defer fw.deinit();
 
-            if (try gui.menuItemLabel(@src(), "New Virtual Machine", false, .{}) != null) {
+            if (try gui.menuItemLabel(@src(), "New Virtual Machine", .{}, .{}) != null) {
                 new_virtual_machine.show = true;
                 new_virtual_machine.init();
 
@@ -107,24 +107,24 @@ fn gui_frame() !void {
             }
         }
 
-        if (try gui.menuItemLabel(@src(), "View", true, .{ .expand = .none })) |r| {
+        if (try gui.menuItemLabel(@src(), "View", .{ .submenu = true }, .{ .expand = .none })) |r| {
             var fw = try gui.popup(@src(), gui.Rect.fromPoint(gui.Point{ .x = r.x, .y = r.y + r.h }), .{});
             defer fw.deinit();
 
-            if (gui.themeGet() == &gui.Adwaita.dark and try gui.menuItemLabel(@src(), "Use Light Theme", false, .{}) != null) {
+            if (gui.themeGet() == &gui.Adwaita.dark and try gui.menuItemLabel(@src(), "Use Light Theme", .{}, .{}) != null) {
                 gui.themeSet(&gui.Adwaita.light);
                 gui.menuGet().?.close();
-            } else if (gui.themeGet() == &gui.Adwaita.light and try gui.menuItemLabel(@src(), "Use Dark Theme", false, .{}) != null) {
+            } else if (gui.themeGet() == &gui.Adwaita.light and try gui.menuItemLabel(@src(), "Use Dark Theme", .{}, .{}) != null) {
                 gui.themeSet(&gui.Adwaita.dark);
                 gui.menuGet().?.close();
             }
         }
 
-        if (try gui.menuItemLabel(@src(), "Help", true, .{ .expand = .none })) |r| {
+        if (try gui.menuItemLabel(@src(), "Help", .{ .submenu = true }, .{ .expand = .none })) |r| {
             var fw = try gui.popup(@src(), gui.Rect.fromPoint(gui.Point{ .x = r.x, .y = r.y + r.h }), .{});
             defer fw.deinit();
 
-            if (try gui.menuItemLabel(@src(), "About", false, .{}) != null) {
+            if (try gui.menuItemLabel(@src(), "About", .{}, .{}) != null) {
                 try gui.dialog(@src(), .{ .title = "About", .message = "ZigEmu v" ++ utils.VERSION ++ " - A simple QEMU frontend, made in Zig." });
 
                 gui.menuGet().?.close();

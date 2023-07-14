@@ -57,26 +57,7 @@ pub fn add_combo_option(option_name: []const u8, options: []const []const u8, in
     try gui.label(@src(), "{s}:", .{option_name}, .{ .id_extra = option_index.* });
     option_index.* += 1;
 
-    var m = try gui.menu(@src(), .horizontal, .{ .background = true, .expand = .horizontal, .id_extra = option_index.* });
-    defer m.deinit();
-    option_index.* += 1;
-
-    if (try gui.menuItemLabel(@src(), options[index.*], true, .{ .expand = .horizontal, .id_extra = option_index.*, .background = true })) |r| {
-        var fw = try gui.popup(@src(), gui.Rect.fromPoint(gui.Point{ .x = r.x, .y = r.y + r.h }), .{ .id_extra = option_index.* });
-        defer fw.deinit();
-        option_index.* += 1;
-
-        for (0..options.len) |i| {
-            if (try gui.menuItemLabel(@src(), options[i], false, .{ .id_extra = option_index.*, .min_size_content = .{ .w = r.w } }) != null) {
-                index.* = i;
-
-                gui.menuGet().?.close();
-            }
-
-            option_index.* += 1;
-        }
-    }
-
+    _ = try gui.dropdown(@src(), options, index, .{ .expand = .horizontal, .id_extra = option_index.* });
     option_index.* += 1;
 }
 
