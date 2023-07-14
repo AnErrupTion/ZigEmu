@@ -28,7 +28,7 @@ pub fn get_arguments(vm: structs.VirtualMachine, drives: []*structs.Drive) !std.
         .dbus => "dbus",
     };
 
-    var qemu_name = try std.fmt.allocPrint(main.gpa, "qemu-system-{s}", .{architecture_str});
+    var qemu_path = try std.fmt.allocPrint(main.gpa, "{s}{s}qemu-system-{s}", .{ vm.qemu.qemu_path, if (!std.mem.endsWith(u8, vm.qemu.qemu_path, std.fs.path.sep_str)) std.fs.path.sep_str else "", architecture_str });
     var name = try std.fmt.allocPrint(main.gpa, "{s},process={s}", .{ vm.basic.name, vm.basic.name });
     var cpu = if (vm.processor.features.len > 0) try std.fmt.allocPrint(main.gpa, "{s},{s}", .{ cpu_str, vm.processor.features }) else cpu_str;
     var ram = try std.fmt.allocPrint(main.gpa, "{d}M", .{vm.memory.ram});
@@ -37,7 +37,7 @@ pub fn get_arguments(vm: structs.VirtualMachine, drives: []*structs.Drive) !std.
     var pci_bus_type = if (vm.basic.chipset == .q35) "pcie" else "pci";
     var ahci_bus: u64 = 0;
 
-    try permanent_buffers.arrays.append(qemu_name);
+    try permanent_buffers.arrays.append(qemu_path);
     try permanent_buffers.arrays.append(name);
     if (vm.processor.features.len > 0) {
         try permanent_buffers.arrays.append(cpu);
@@ -46,7 +46,7 @@ pub fn get_arguments(vm: structs.VirtualMachine, drives: []*structs.Drive) !std.
     try permanent_buffers.arrays.append(smp);
     try permanent_buffers.arrays.append(display);
 
-    try list.append(qemu_name);
+    try list.append(qemu_path);
     try list.append("-nodefaults");
 
     try list.append("-accel");

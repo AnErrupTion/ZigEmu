@@ -179,6 +179,10 @@ pub fn gui_frame() !void {
                 .is_ssd = false,
                 .path = "",
             },
+            .qemu = .{
+                .override_qemu_path = false,
+                .qemu_path = "",
+            },
         };
 
         try main.virtual_machines.append(vm);

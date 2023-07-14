@@ -61,6 +61,9 @@ var drives_options = std.mem.zeroes([5]struct {
     path: [512]u8,
 });
 
+var override_qemu_path = false;
+var qemu_path = std.mem.zeroes([512]u8);
+
 pub fn init() !void {
     drives = try main.gpa.alloc(*structs.Drive, 5);
     drives[0] = &vm.drive0;
@@ -81,6 +84,7 @@ pub fn init() !void {
     try init_audio();
     try init_peripherals();
     try init_drives();
+    try init_qemu();
 
     initialized = true;
 }
@@ -141,8 +145,11 @@ pub fn gui_frame() !void {
         if (try gui.button(@src(), "Drives", .{ .expand = .horizontal })) {
             setting = 7;
         }
-        if (try gui.button(@src(), "Command line", .{ .expand = .horizontal })) {
+        if (try gui.button(@src(), "QEMU", .{ .expand = .horizontal })) {
             setting = 8;
+        }
+        if (try gui.button(@src(), "Command line", .{ .expand = .horizontal })) {
+            setting = 9;
         }
         if (try gui.button(@src(), "Run", .{ .expand = .horizontal, .color_style = .accent })) {
             var qemu_arguments = try qemu.get_arguments(vm, drives);
@@ -187,6 +194,9 @@ pub fn gui_frame() !void {
                 try drives_gui_frame();
             },
             8 => {
+                try qemu_gui_frame();
+            },
+            9 => {
                 try command_line_gui_frame();
             },
             else => {},
@@ -269,6 +279,14 @@ fn init_drives() !void {
         drive_options.*.is_ssd = drive.is_ssd;
         set_buffer(&drive_options.path, drive.path);
     }
+}
+
+fn init_qemu() !void {
+    @memset(&qemu_path, 0);
+
+    set_buffer(&qemu_path, vm.qemu.qemu_path);
+
+    override_qemu_path = vm.qemu.override_qemu_path;
 }
 
 fn basic_gui_frame() !void {
@@ -402,6 +420,10 @@ fn graphics_gui_frame() !void {
     try utils.add_bool_option("VGA emulation", &has_vga_emulation, &option_index);
     try utils.add_bool_option("Graphics acceleration", &has_graphics_acceleration, &option_index);
 
+    // First sanity checks
+    if (gpu == 1 or gpu == 3) has_vga_emulation = true;
+    if (gpu >= 1 and gpu <= 3) has_graphics_acceleration = false;
+
     if (try gui.button(@src(), "Save", .{ .expand = .horizontal, .color_style = .accent })) {
         // Write updated data to struct
         vm.graphics.display = @enumFromInt(display);
@@ -409,17 +431,8 @@ fn graphics_gui_frame() !void {
         vm.graphics.has_vga_emulation = has_vga_emulation;
         vm.graphics.has_graphics_acceleration = has_graphics_acceleration;
 
-        // Sanity checks
-        if (vm.graphics.gpu == .vga and !vm.graphics.has_vga_emulation) {
-            try gui.dialog(@src(), .{ .title = "Error", .message = "GPU model \"vga\" requires VGA emulation." });
-            return;
-        } else if (vm.graphics.gpu == .vga and vm.graphics.has_graphics_acceleration) {
-            try gui.dialog(@src(), .{ .title = "Error", .message = "GPU model \"vga\" doesn't support graphics acceleration." });
-            return;
-        } else if (vm.graphics.gpu == .qxl and vm.graphics.has_graphics_acceleration) {
-            try gui.dialog(@src(), .{ .title = "Error", .message = "GPU model \"qxl\" doesn't support graphics acceleration." });
-            return;
-        } else if (vm.graphics.display == .cocoa and builtin.os.tag != .macos) {
+        // Second sanity checks
+        if (vm.graphics.display == .cocoa and builtin.os.tag != .macos) {
             try gui.dialog(@src(), .{ .title = "Error", .message = "Display \"cocoa\" is only supported on macOS." });
             return;
         } else if (vm.graphics.display == .dbus and builtin.os.tag != .linux and !Tag.isBSD(builtin.os.tag)) {
@@ -440,6 +453,12 @@ fn audio_gui_frame() !void {
     try utils.add_bool_option("Input", &has_input, &option_index);
     try utils.add_bool_option("Output", &has_output, &option_index);
 
+    // First sanity checks
+    if (sound <= 1 or sound == 4) {
+        has_input = false;
+        has_output = true;
+    }
+
     if (try gui.button(@src(), "Save", .{ .expand = .horizontal, .color_style = .accent })) {
         // Write updated data to struct
         vm.audio.host_device = @enumFromInt(host_device);
@@ -447,34 +466,10 @@ fn audio_gui_frame() !void {
         vm.audio.has_input = has_input;
         vm.audio.has_output = has_output;
 
-        // Sanity checks
-        if (vm.audio.sound == .sb16) {
-            if (vm.audio.has_input) {
-                try gui.dialog(@src(), .{ .title = "Error", .message = "Cannot add input to sound device \"sb16\" (unsupported operation)." });
-                return;
-            } else if (!vm.audio.has_output) {
-                try gui.dialog(@src(), .{ .title = "Error", .message = "Cannot remove output from sound device \"sb16\" (unsupported operation)." });
-                return;
-            }
-        } else if (vm.audio.sound == .ac97) {
-            if (vm.audio.has_input) {
-                try gui.dialog(@src(), .{ .title = "Error", .message = "Cannot add input to sound device \"ac97\" (unsupported operation)." });
-                return;
-            } else if (!vm.audio.has_output) {
-                try gui.dialog(@src(), .{ .title = "Error", .message = "Cannot remove output from sound device \"ac97\" (unsupported operation)." });
-                return;
-            }
-        } else if (vm.audio.sound == .usb) {
-            if (vm.audio.has_input) {
-                try gui.dialog(@src(), .{ .title = "Error", .message = "Cannot add input to sound device \"usb\" (unsupported operation)." });
-                return;
-            } else if (!vm.audio.has_output) {
-                try gui.dialog(@src(), .{ .title = "Error", .message = "Cannot remove output from sound device \"usb\" (unsupported operation)." });
-                return;
-            } else if (vm.basic.usb_type == .none) {
-                try gui.dialog(@src(), .{ .title = "Error", .message = "Sound device \"usb\" requires a USB controller." });
-                return;
-            }
+        // Second sanity checks
+        if (vm.audio.sound == .usb and vm.basic.usb_type == .none) {
+            try gui.dialog(@src(), .{ .title = "Error", .message = "Sound device \"usb\" requires a USB controller." });
+            return;
         } else if (builtin.os.tag == .windows and host_device >= 2 and host_device <= 6) {
             try gui.dialog(@src(), .{ .title = "Error", .message = try std.fmt.bufPrint(&format_buffer, "Audio host device \"{}\" is unsupported by Windows.", .{vm.audio.host_device}) });
             return;
@@ -535,6 +530,9 @@ fn drives_gui_frame() !void {
         try utils.add_combo_option("Cache", &[_][]const u8{ "None", "Writeback", "Writethrough", "Directsync", "Unsafe" }, &drive_options.cache, &option_index);
         try utils.add_bool_option("SSD", &drive_options.is_ssd, &option_index);
         try utils.add_text_option("Path", &drive_options.path, &option_index);
+
+        // First sanity checks
+        if (drive_options.bus == 0 or drive_options.bus == 3) drive_options.*.is_cdrom = false;
     }
 
     if (try gui.button(@src(), "Save", .{ .expand = .horizontal, .color_style = .accent })) {
@@ -552,21 +550,34 @@ fn drives_gui_frame() !void {
                 return;
             }).items;
 
-            // Sanity checks
+            // Second sanity checks
             if (drive.bus == .usb and vm.basic.usb_type == .none) {
                 try gui.dialog(@src(), .{ .title = "Error", .message = try std.fmt.bufPrint(&format_buffer, "Bus \"usb\" of drive {d} requires a USB controller.", .{i}) });
                 return;
             } else if (drive.bus == .sata and !vm.basic.has_ahci) {
                 try gui.dialog(@src(), .{ .title = "Error", .message = try std.fmt.bufPrint(&format_buffer, "Bus \"sata\" of drive {d} requires a SATA controller.", .{i}) });
                 return;
-            } else if (drive.bus == .usb and drive.is_cdrom) {
-                try gui.dialog(@src(), .{ .title = "Error", .message = try std.fmt.bufPrint(&format_buffer, "Bus \"usb\" of drive {d} cannot have a CD-ROM drive.", .{i}) });
-                return;
-            } else if (drive.bus == .virtio and drive.is_cdrom) {
-                try gui.dialog(@src(), .{ .title = "Error", .message = try std.fmt.bufPrint(&format_buffer, "Bus \"virtio\" of drive {d} cannot have a CD-ROM drive.", .{i}) });
-                return;
             }
         }
+
+        // Write to file
+        try save_changes();
+    }
+}
+
+fn qemu_gui_frame() !void {
+    option_index = 0;
+
+    try utils.add_bool_option("Override QEMU path", &override_qemu_path, &option_index);
+    if (override_qemu_path) try utils.add_text_option("QEMU path", &qemu_path, &option_index);
+
+    if (try gui.button(@src(), "Save", .{ .expand = .horizontal, .color_style = .accent })) {
+        // Write updated data to struct
+        vm.qemu.override_qemu_path = override_qemu_path;
+        vm.qemu.qemu_path = (utils.sanitize_output_text(&qemu_path, false) catch {
+            try gui.dialog(@src(), .{ .title = "Error", .message = "Please enter a valid path for QEMU!" });
+            return;
+        }).items;
 
         // Write to file
         try save_changes();

@@ -160,4 +160,8 @@ pub const VirtualMachine = struct {
     drive2: Drive,
     drive3: Drive,
     drive4: Drive,
+    qemu: struct {
+        override_qemu_path: bool,
+        qemu_path: []const u8,
+    },
 };
