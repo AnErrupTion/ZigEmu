@@ -247,7 +247,9 @@ pub fn getArguments(vm: structs.VirtualMachine, drives: []*structs.Drive) !std.A
 
             const names = &[_][]const u8{"bios.bin"};
 
-            var firmware = path.lookup(paths, names);
+            var firmware = try path.lookup(main.gpa, paths, names);
+
+            try permanent_buffers.arrays.append(firmware);
 
             try list.append("-bios");
             try list.append(firmware);
@@ -268,11 +270,14 @@ pub fn getArguments(vm: structs.VirtualMachine, drives: []*structs.Drive) !std.A
                 .amd64 => &[_][]const u8{ "edk2-i386-vars.fd", "OVMF_VARS.fd" },
             };
 
-            const code = path.lookup(paths, codes);
-            const vars = path.lookup(paths, variables);
+            const code = try path.lookup(main.gpa, paths, codes);
+            const vars = try path.lookup(main.gpa, paths, variables);
+
+            try permanent_buffers.arrays.append(code);
+            try permanent_buffers.arrays.append(vars);
 
             var code_drive = try std.fmt.allocPrint(main.gpa, "if=pflash,readonly=on,file={s}", .{code});
-            var vars_drive = try std.fmt.allocPrint(main.gpa, "if=pflash,file={s}", .{vars});
+            var vars_drive = try std.fmt.allocPrint(main.gpa, "if=pflash,readonly=on,file={s}", .{vars});
 
             try permanent_buffers.arrays.append(code_drive);
             try permanent_buffers.arrays.append(vars_drive);
