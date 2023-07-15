@@ -6,7 +6,7 @@ pub fn build(b: *std.build.Builder) !void {
 
     const exe = b.addExecutable(.{
         .name = "ZigEmu",
-        .root_source_file = .{ .path = "main.zig" },
+        .root_source_file = .{ .path = "src/main.zig" },
         .target = target,
         .optimize = optimize,
     });
