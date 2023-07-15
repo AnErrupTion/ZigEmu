@@ -15,6 +15,13 @@ pub const UsbType = enum {
     xhci,
 };
 
+pub const FirmwareType = enum {
+    bios,
+    uefi,
+    custom_pc,
+    custom_pflash,
+};
+
 pub const Cpu = enum {
     i486_v1,
     i486,
@@ -246,6 +253,10 @@ pub const Drive = struct {
 };
 
 pub const VirtualMachine = struct {
+    qemu: struct {
+        override_qemu_path: bool,
+        qemu_path: []const u8,
+    },
     basic: struct {
         name: []const u8,
         architecture: Architecture,
@@ -253,6 +264,10 @@ pub const VirtualMachine = struct {
         chipset: Chipset,
         usb_type: UsbType,
         has_ahci: bool,
+    },
+    firmware: struct {
+        type: FirmwareType,
+        firmware_path: []const u8,
     },
     memory: struct {
         ram: u64,
@@ -290,8 +305,4 @@ pub const VirtualMachine = struct {
     drive2: Drive,
     drive3: Drive,
     drive4: Drive,
-    qemu: struct {
-        override_qemu_path: bool,
-        qemu_path: []const u8,
-    },
 };

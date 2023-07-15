@@ -21,12 +21,18 @@ var initialized = false;
 var setting: u64 = 0;
 var option_index: u64 = 0;
 
+var override_qemu_path = false;
+var qemu_path = std.mem.zeroes([512]u8);
+
 var name = std.mem.zeroes([128]u8);
 var architecture: u64 = 0;
 var has_acceleration = false;
 var chipset: u64 = 0;
 var usb_type: u64 = 0;
 var has_ahci = false;
+
+var firmware_type: u64 = 0;
+var firmware_path = std.mem.zeroes([512]u8);
 
 var ram = std.mem.zeroes([32]u8);
 
@@ -61,9 +67,6 @@ var drives_options = std.mem.zeroes([5]struct {
     path: [512]u8,
 });
 
-var override_qemu_path = false;
-var qemu_path = std.mem.zeroes([512]u8);
-
 pub fn init() !void {
     drives = try main.gpa.alloc(*structs.Drive, 5);
     drives[0] = &vm.drive0;
@@ -76,7 +79,9 @@ pub fn init() !void {
 
     try vm_directory.setAsCwd();
 
+    try init_qemu();
     try init_basic();
+    try init_firmware();
     try init_memory();
     try init_processor();
     try init_network();
@@ -84,7 +89,6 @@ pub fn init() !void {
     try init_audio();
     try init_peripherals();
     try init_drives();
-    try init_qemu();
 
     initialized = true;
 }
@@ -121,35 +125,38 @@ pub fn gui_frame() !void {
         var vbox = try gui.box(@src(), .vertical, .{});
         defer vbox.deinit();
 
-        if (try gui.button(@src(), "Basic", .{ .expand = .horizontal })) {
+        if (try gui.button(@src(), "QEMU", .{ .expand = .horizontal })) {
             setting = 0;
         }
-        if (try gui.button(@src(), "Memory", .{ .expand = .horizontal })) {
+        if (try gui.button(@src(), "Basic", .{ .expand = .horizontal })) {
             setting = 1;
         }
-        if (try gui.button(@src(), "Processor", .{ .expand = .horizontal })) {
+        if (try gui.button(@src(), "Firmware", .{ .expand = .horizontal })) {
             setting = 2;
         }
-        if (try gui.button(@src(), "Network", .{ .expand = .horizontal })) {
+        if (try gui.button(@src(), "Memory", .{ .expand = .horizontal })) {
             setting = 3;
         }
-        if (try gui.button(@src(), "Graphics", .{ .expand = .horizontal })) {
+        if (try gui.button(@src(), "Processor", .{ .expand = .horizontal })) {
             setting = 4;
         }
-        if (try gui.button(@src(), "Audio", .{ .expand = .horizontal })) {
+        if (try gui.button(@src(), "Network", .{ .expand = .horizontal })) {
             setting = 5;
         }
-        if (try gui.button(@src(), "Peripherals", .{ .expand = .horizontal })) {
+        if (try gui.button(@src(), "Graphics", .{ .expand = .horizontal })) {
             setting = 6;
         }
-        if (try gui.button(@src(), "Drives", .{ .expand = .horizontal })) {
+        if (try gui.button(@src(), "Audio", .{ .expand = .horizontal })) {
             setting = 7;
         }
-        if (try gui.button(@src(), "QEMU", .{ .expand = .horizontal })) {
+        if (try gui.button(@src(), "Peripherals", .{ .expand = .horizontal })) {
             setting = 8;
         }
-        if (try gui.button(@src(), "Command line", .{ .expand = .horizontal })) {
+        if (try gui.button(@src(), "Drives", .{ .expand = .horizontal })) {
             setting = 9;
+        }
+        if (try gui.button(@src(), "Command line", .{ .expand = .horizontal })) {
+            setting = 10;
         }
         if (try gui.button(@src(), "Run", .{ .expand = .horizontal, .color_style = .accent })) {
             var qemu_arguments = try qemu.get_arguments(vm, drives);
@@ -170,38 +177,48 @@ pub fn gui_frame() !void {
 
         switch (setting) {
             0 => {
-                try basic_gui_frame();
-            },
-            1 => {
-                try memory_gui_frame();
-            },
-            2 => {
-                try processor_gui_frame();
-            },
-            3 => {
-                try network_gui_frame();
-            },
-            4 => {
-                try graphics_gui_frame();
-            },
-            5 => {
-                try audio_gui_frame();
-            },
-            6 => {
-                try peripherals_gui_frame();
-            },
-            7 => {
-                try drives_gui_frame();
-            },
-            8 => {
                 try qemu_gui_frame();
             },
+            1 => {
+                try basic_gui_frame();
+            },
+            2 => {
+                try firmware_gui_frame();
+            },
+            3 => {
+                try memory_gui_frame();
+            },
+            4 => {
+                try processor_gui_frame();
+            },
+            5 => {
+                try network_gui_frame();
+            },
+            6 => {
+                try graphics_gui_frame();
+            },
+            7 => {
+                try audio_gui_frame();
+            },
+            8 => {
+                try peripherals_gui_frame();
+            },
             9 => {
+                try drives_gui_frame();
+            },
+            10 => {
                 try command_line_gui_frame();
             },
             else => {},
         }
     }
+}
+
+fn init_qemu() !void {
+    @memset(&qemu_path, 0);
+
+    override_qemu_path = vm.qemu.override_qemu_path;
+    set_buffer(&qemu_path, vm.qemu.qemu_path);
 }
 
 fn init_basic() !void {
@@ -213,6 +230,13 @@ fn init_basic() !void {
     chipset = @intFromEnum(vm.basic.chipset);
     usb_type = @intFromEnum(vm.basic.usb_type);
     has_ahci = vm.basic.has_ahci;
+}
+
+fn init_firmware() !void {
+    @memset(&firmware_path, 0);
+
+    firmware_type = @intFromEnum(vm.firmware.type);
+    set_buffer(&firmware_path, vm.firmware.firmware_path);
 }
 
 fn init_memory() !void {
@@ -281,12 +305,23 @@ fn init_drives() !void {
     }
 }
 
-fn init_qemu() !void {
-    @memset(&qemu_path, 0);
+fn qemu_gui_frame() !void {
+    option_index = 0;
 
-    set_buffer(&qemu_path, vm.qemu.qemu_path);
+    try utils.add_bool_option("Override QEMU path", &override_qemu_path, &option_index);
+    if (override_qemu_path) try utils.add_text_option("QEMU path", &qemu_path, &option_index);
 
-    override_qemu_path = vm.qemu.override_qemu_path;
+    if (try gui.button(@src(), "Save", .{ .expand = .horizontal, .color_style = .accent })) {
+        // Write updated data to struct
+        vm.qemu.override_qemu_path = override_qemu_path;
+        vm.qemu.qemu_path = (utils.sanitize_output_text(&qemu_path, false) catch {
+            try gui.dialog(@src(), .{ .title = "Error", .message = "Please enter a valid path for QEMU!" });
+            return;
+        }).items;
+
+        // Write to file
+        try save_changes();
+    }
 }
 
 fn basic_gui_frame() !void {
@@ -327,6 +362,9 @@ fn basic_gui_frame() !void {
         } else if (vm.basic.usb_type == .none and vm.peripherals.mouse == .usb) {
             try gui.dialog(@src(), .{ .title = "Error", .message = "Mouse model \"usb\" requires a USB controller." });
             return;
+        } else if (vm.basic.architecture != .amd64 and vm.firmware.type == .bios) {
+            try gui.dialog(@src(), .{ .title = "Error", .message = "Firmware \"bios\" only works with the AMD64 architecture." });
+            return;
         }
 
         for (drives, 0..) |drive, i| {
@@ -337,6 +375,31 @@ fn basic_gui_frame() !void {
                 try gui.dialog(@src(), .{ .title = "Error", .message = try std.fmt.bufPrint(&format_buffer, "Bus \"sata\" of drive {d} requires a USB controller.", .{i}) });
                 return;
             }
+        }
+
+        // Write to file
+        try save_changes();
+    }
+}
+
+fn firmware_gui_frame() !void {
+    option_index = 0;
+
+    try utils.add_combo_option("Type", &[_][]const u8{ "BIOS", "UEFI", "Custom PC", "Custom PFlash" }, &firmware_type, &option_index);
+    if (firmware_type >= 2) try utils.add_text_option("Path", &firmware_path, &option_index);
+
+    if (try gui.button(@src(), "Save", .{ .expand = .horizontal, .color_style = .accent })) {
+        // Write updated data to struct
+        vm.firmware.type = @enumFromInt(firmware_type);
+        vm.firmware.firmware_path = (utils.sanitize_output_text(&firmware_path, false) catch {
+            try gui.dialog(@src(), .{ .title = "Error", .message = "Please enter a valid firmware path!" });
+            return;
+        }).items;
+
+        // Sanity checks
+        if (vm.firmware.type == .bios and vm.basic.architecture != .amd64) {
+            try gui.dialog(@src(), .{ .title = "Error", .message = "Firmware \"bios\" only works with the AMD64 architecture." });
+            return;
         }
 
         // Write to file
@@ -694,25 +757,6 @@ fn drives_gui_frame() !void {
                 return;
             }
         }
-
-        // Write to file
-        try save_changes();
-    }
-}
-
-fn qemu_gui_frame() !void {
-    option_index = 0;
-
-    try utils.add_bool_option("Override QEMU path", &override_qemu_path, &option_index);
-    if (override_qemu_path) try utils.add_text_option("QEMU path", &qemu_path, &option_index);
-
-    if (try gui.button(@src(), "Save", .{ .expand = .horizontal, .color_style = .accent })) {
-        // Write updated data to struct
-        vm.qemu.override_qemu_path = override_qemu_path;
-        vm.qemu.qemu_path = (utils.sanitize_output_text(&qemu_path, false) catch {
-            try gui.dialog(@src(), .{ .title = "Error", .message = "Please enter a valid path for QEMU!" });
-            return;
-        }).items;
 
         // Write to file
         try save_changes();

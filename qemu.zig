@@ -4,6 +4,7 @@ const structs = @import("structs.zig");
 const main = @import("main.zig");
 const utils = @import("utils.zig");
 const permanent_buffers = @import("permanent_buffers.zig");
+const path = @import("path.zig");
 
 pub fn get_arguments(vm: structs.VirtualMachine, drives: []*structs.Drive) !std.ArrayList([]const u8) {
     var list = std.ArrayList([]const u8).init(main.gpa);
@@ -158,14 +159,15 @@ pub fn get_arguments(vm: structs.VirtualMachine, drives: []*structs.Drive) !std.
         .dbus => "dbus",
     };
 
-    var qemu_path_separator = if (vm.qemu.override_qemu_path and !std.mem.endsWith(u8, vm.qemu.qemu_path, std.fs.path.sep_str)) std.fs.path.sep_str else "";
+    const qemu_path_separator = if (vm.qemu.override_qemu_path and !std.mem.endsWith(u8, vm.qemu.qemu_path, std.fs.path.sep_str)) std.fs.path.sep_str else "";
+    const pci_bus_type = if (vm.basic.chipset == .q35) "pcie" else "pci";
+
     var qemu_path = try std.fmt.allocPrint(main.gpa, "{s}{s}qemu-system-{s}", .{ vm.qemu.qemu_path, qemu_path_separator, architecture_str });
     var name = try std.fmt.allocPrint(main.gpa, "{s},process={s}", .{ vm.basic.name, vm.basic.name });
     var cpu = if (vm.processor.features.len > 0) try std.fmt.allocPrint(main.gpa, "{s},{s}", .{ cpu_str, vm.processor.features }) else cpu_str;
     var ram = try std.fmt.allocPrint(main.gpa, "{d}M", .{vm.memory.ram});
     var smp = try std.fmt.allocPrint(main.gpa, "cores={d},threads={d}", .{ vm.processor.cores, vm.processor.threads });
     var display = try std.fmt.allocPrint(main.gpa, "{s},gl={s}", .{ display_str, if (vm.graphics.has_graphics_acceleration) "on" else "off" });
-    var pci_bus_type = if (vm.basic.chipset == .q35) "pcie" else "pci";
     var ahci_bus: u64 = 0;
 
     try permanent_buffers.arrays.append(qemu_path);
@@ -232,6 +234,60 @@ pub fn get_arguments(vm: structs.VirtualMachine, drives: []*structs.Drive) !std.
 
         try list.append("-device");
         try list.append(ahci);
+    }
+
+    switch (vm.firmware.type) {
+        .bios => {
+            if (vm.basic.architecture != .amd64) unreachable;
+
+            var firmware = path.lookup(.{if (vm.qemu.override_qemu_path) vm.qemu.qemu_path else switch (builtin.os.tag) {
+                .linux => "/usr/share/qemu",
+                else => unreachable, // TODO: Firmware path auto-detection for Windows and macOS
+            }}, .{"bios.bin"});
+
+            try list.append("-bios");
+            try list.append(firmware);
+        },
+        .uefi => {
+            const paths: []const u8 = if (vm.qemu.override_qemu_path) vm.qemu.qemu_path else switch (vm.basic.architecture) {
+                .amd64 => if (builtin.os.tag == .linux) .{ "/usr/share/qemu", "/usr/share/OVMF/x64" } else unreachable, // TODO: Firmware path auto-detection for Windows and macOS
+            };
+
+            const codes: []const u8 = switch (vm.basic.architecture) {
+                .amd64 => .{ "edk2-x86_64-code.fd", "OVMF_CODE.fd" },
+            };
+
+            const variables: []const u8 = switch (vm.basic.architecture) {
+                .amd64 => .{ "edk2-i386-vars.fd", "OVMF_VARS.fd" },
+            };
+
+            const code = path.lookup(paths, codes);
+            const vars = path.lookup(paths, variables);
+
+            var code_drive = try std.fmt.allocPrint(main.gpa, "if=pflash,readonly=on,file={s}", .{code});
+            var vars_drive = try std.fmt.allocPrint(main.gpa, "if=pflash,file={s}", .{vars});
+
+            try permanent_buffers.arrays.append(code_drive);
+            try permanent_buffers.arrays.append(vars_drive);
+
+            try list.append("-drive");
+            try list.append(code_drive);
+
+            try list.append("-drive");
+            try list.append(vars_drive);
+        },
+        .custom_pc => {
+            try list.append("-bios");
+            try list.append(vm.firmware.firmware_path);
+        },
+        .custom_pflash => {
+            var firmware = try std.fmt.allocPrint(main.gpa, "if=pflash,readonly=on,file={s}", .{vm.firmware.firmware_path});
+
+            try permanent_buffers.arrays.append(firmware);
+
+            try list.append("-drive");
+            try list.append(firmware);
+        },
     }
 
     if (vm.network.type != .none) {

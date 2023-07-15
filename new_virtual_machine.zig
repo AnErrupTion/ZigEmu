@@ -183,6 +183,10 @@ pub fn gui_frame() !void {
                 .override_qemu_path = false,
                 .qemu_path = "",
             },
+            .firmware = .{
+                .type = .bios,
+                .firmware_path = "",
+            },
         };
 
         try main.virtual_machines.append(vm);
