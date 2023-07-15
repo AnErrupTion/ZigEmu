@@ -253,8 +253,11 @@ pub fn getArguments(vm: structs.VirtualMachine, drives: []*structs.Drive) !std.A
             try list.append(firmware);
         },
         .uefi => {
-            const paths = if (vm.qemu.override_qemu_path) &[_][]const u8{vm.qemu.qemu_path} else switch (vm.basic.architecture) {
-                .amd64 => if (builtin.os.tag == .linux) &[_][]const u8{ "/usr/share/qemu", "/usr/share/OVMF/x64" } else unreachable, // TODO: Firmware path auto-detection for Windows and macOS
+            const paths = if (vm.qemu.override_qemu_path) &[_][]const u8{vm.qemu.qemu_path} else switch (builtin.os.tag) {
+                .linux => switch (vm.basic.architecture) {
+                    .amd64 => &[_][]const u8{ "/usr/share/qemu", "/usr/share/OVMF/x64" },
+                },
+                else => unreachable, // TODO: Firmware path auto-detection for Windows and macOS
             };
 
             const codes = switch (vm.basic.architecture) {
