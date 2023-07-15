@@ -101,7 +101,7 @@ pub fn deinit() !void {
     main.gpa.free(drives);
 }
 
-pub fn gui_frame() !void {
+pub fn guiFrame() !void {
     if (!show) {
         if (initialized) {
             try deinit();
@@ -159,7 +159,7 @@ pub fn gui_frame() !void {
             setting = 10;
         }
         if (try gui.button(@src(), "Run", .{ .expand = .horizontal, .color_style = .accent })) {
-            var qemu_arguments = try qemu.get_arguments(vm, drives);
+            var qemu_arguments = try qemu.getArguments(vm, drives);
             defer qemu_arguments.deinit();
 
             var qemu_process = std.ChildProcess.init(qemu_arguments.items, main.gpa);
@@ -308,13 +308,13 @@ fn init_drives() !void {
 fn qemu_gui_frame() !void {
     option_index = 0;
 
-    try utils.add_bool_option("Override QEMU path", &override_qemu_path, &option_index);
-    if (override_qemu_path) try utils.add_text_option("QEMU path", &qemu_path, &option_index);
+    try utils.addBoolOption("Override QEMU path", &override_qemu_path, &option_index);
+    if (override_qemu_path) try utils.addTextOption("QEMU path", &qemu_path, &option_index);
 
     if (try gui.button(@src(), "Save", .{ .expand = .horizontal, .color_style = .accent })) {
         // Write updated data to struct
         vm.qemu.override_qemu_path = override_qemu_path;
-        vm.qemu.qemu_path = (utils.sanitize_output_text(&qemu_path, false) catch {
+        vm.qemu.qemu_path = (utils.sanitizeOutputText(&qemu_path, false) catch {
             try gui.dialog(@src(), .{ .title = "Error", .message = "Please enter a valid path for QEMU!" });
             return;
         }).items;
@@ -327,16 +327,16 @@ fn qemu_gui_frame() !void {
 fn basic_gui_frame() !void {
     option_index = 0;
 
-    try utils.add_text_option("Name", &name, &option_index);
-    try utils.add_combo_option("Architecture", &[_][]const u8{"AMD64"}, &architecture, &option_index);
-    try utils.add_bool_option("Hardware acceleration", &has_acceleration, &option_index); // TODO: Detect host architecture
-    try utils.add_combo_option("Chipset", &[_][]const u8{ "i440FX", "Q35" }, &chipset, &option_index);
-    try utils.add_combo_option("USB type", &[_][]const u8{ "None", "OHCI (Open 1.0)", "UHCI (Proprietary 1.0)", "EHCI (2.0)", "XHCI (3.0)" }, &usb_type, &option_index);
-    try utils.add_bool_option("Use AHCI", &has_ahci, &option_index);
+    try utils.addTextOption("Name", &name, &option_index);
+    try utils.addComboOption("Architecture", &[_][]const u8{"AMD64"}, &architecture, &option_index);
+    try utils.addBoolOption("Hardware acceleration", &has_acceleration, &option_index); // TODO: Detect host architecture
+    try utils.addComboOption("Chipset", &[_][]const u8{ "i440FX", "Q35" }, &chipset, &option_index);
+    try utils.addComboOption("USB type", &[_][]const u8{ "None", "OHCI (Open 1.0)", "UHCI (Proprietary 1.0)", "EHCI (2.0)", "XHCI (3.0)" }, &usb_type, &option_index);
+    try utils.addBoolOption("Use AHCI", &has_ahci, &option_index);
 
     if (try gui.button(@src(), "Save", .{ .expand = .horizontal, .color_style = .accent })) {
         // Write updated data to struct
-        vm.basic.name = (utils.sanitize_output_text(&name, true) catch {
+        vm.basic.name = (utils.sanitizeOutputText(&name, true) catch {
             try gui.dialog(@src(), .{ .title = "Error", .message = "Please enter a valid name!" });
             return;
         }).items;
@@ -385,13 +385,13 @@ fn basic_gui_frame() !void {
 fn firmware_gui_frame() !void {
     option_index = 0;
 
-    try utils.add_combo_option("Type", &[_][]const u8{ "BIOS", "UEFI", "Custom PC", "Custom PFlash" }, &firmware_type, &option_index);
-    if (firmware_type >= 2) try utils.add_text_option("Path", &firmware_path, &option_index);
+    try utils.addComboOption("Type", &[_][]const u8{ "BIOS", "UEFI", "Custom PC", "Custom PFlash" }, &firmware_type, &option_index);
+    if (firmware_type >= 2) try utils.addTextOption("Path", &firmware_path, &option_index);
 
     if (try gui.button(@src(), "Save", .{ .expand = .horizontal, .color_style = .accent })) {
         // Write updated data to struct
         vm.firmware.type = @enumFromInt(firmware_type);
-        vm.firmware.firmware_path = (utils.sanitize_output_text(&firmware_path, false) catch {
+        vm.firmware.firmware_path = (utils.sanitizeOutputText(&firmware_path, false) catch {
             try gui.dialog(@src(), .{ .title = "Error", .message = "Please enter a valid firmware path!" });
             return;
         }).items;
@@ -410,11 +410,11 @@ fn firmware_gui_frame() !void {
 fn memory_gui_frame() !void {
     option_index = 0;
 
-    try utils.add_text_option("RAM (in MiB)", &ram, &option_index);
+    try utils.addTextOption("RAM (in MiB)", &ram, &option_index);
 
     if (try gui.button(@src(), "Save", .{ .expand = .horizontal, .color_style = .accent })) {
         // Write updated data to struct
-        vm.memory.ram = utils.sanitize_output_number(&ram) catch {
+        vm.memory.ram = utils.sanitizeOutputNumber(&ram) catch {
             try gui.dialog(@src(), .{ .title = "Error", .message = "Please enter a valid amount of RAM!" });
             return;
         };
@@ -427,7 +427,7 @@ fn memory_gui_frame() !void {
 fn processor_gui_frame() !void {
     option_index = 0;
 
-    try utils.add_combo_option("CPU", &[_][]const u8{
+    try utils.addComboOption("CPU", &[_][]const u8{
         "486-v1",
         "486",
         "athlon-v1",
@@ -561,22 +561,22 @@ fn processor_gui_frame() !void {
         "Westmere-v2",
         "Westmere",
     }, &cpu, &option_index);
-    try utils.add_text_option("Features", &features, &option_index);
-    try utils.add_text_option("Cores", &cores, &option_index);
-    try utils.add_text_option("Threads", &threads, &option_index);
+    try utils.addTextOption("Features", &features, &option_index);
+    try utils.addTextOption("Cores", &cores, &option_index);
+    try utils.addTextOption("Threads", &threads, &option_index);
 
     if (try gui.button(@src(), "Save", .{ .expand = .horizontal, .color_style = .accent })) {
         // Write updated data to struct
         vm.processor.cpu = @enumFromInt(cpu);
-        vm.processor.features = (utils.sanitize_output_text(&features, false) catch {
+        vm.processor.features = (utils.sanitizeOutputText(&features, false) catch {
             try gui.dialog(@src(), .{ .title = "Error", .message = "Please enter a valid feature subset!" });
             return;
         }).items;
-        vm.processor.cores = utils.sanitize_output_number(&cores) catch {
+        vm.processor.cores = utils.sanitizeOutputNumber(&cores) catch {
             try gui.dialog(@src(), .{ .title = "Error", .message = "Please enter a valid amount of cores!" });
             return;
         };
-        vm.processor.threads = utils.sanitize_output_number(&threads) catch {
+        vm.processor.threads = utils.sanitizeOutputNumber(&threads) catch {
             try gui.dialog(@src(), .{ .title = "Error", .message = "Please enter a valid amount of threads!" });
             return;
         };
@@ -595,8 +595,8 @@ fn processor_gui_frame() !void {
 fn network_gui_frame() !void {
     option_index = 0;
 
-    try utils.add_combo_option("Type", &[_][]const u8{ "None", "NAT" }, &network_type, &option_index);
-    try utils.add_combo_option("Interface", &[_][]const u8{ "RTL8139", "E1000", "E1000e", "VMware", "USB", "VirtIO" }, &interface, &option_index);
+    try utils.addComboOption("Type", &[_][]const u8{ "None", "NAT" }, &network_type, &option_index);
+    try utils.addComboOption("Interface", &[_][]const u8{ "RTL8139", "E1000", "E1000e", "VMware", "USB", "VirtIO" }, &interface, &option_index);
 
     if (try gui.button(@src(), "Save", .{ .expand = .horizontal, .color_style = .accent })) {
         // Write updated data to struct
@@ -611,10 +611,10 @@ fn network_gui_frame() !void {
 fn graphics_gui_frame() !void {
     option_index = 0;
 
-    try utils.add_combo_option("Display", &[_][]const u8{ "None", "SDL", "GTK", "SPICE", "Cocoa", "D-Bus" }, &display, &option_index);
-    try utils.add_combo_option("GPU", &[_][]const u8{ "None", "VGA", "QXL", "VMware", "VirtIO" }, &gpu, &option_index);
-    try utils.add_bool_option("VGA emulation", &has_vga_emulation, &option_index);
-    try utils.add_bool_option("Graphics acceleration", &has_graphics_acceleration, &option_index);
+    try utils.addComboOption("Display", &[_][]const u8{ "None", "SDL", "GTK", "SPICE", "Cocoa", "D-Bus" }, &display, &option_index);
+    try utils.addComboOption("GPU", &[_][]const u8{ "None", "VGA", "QXL", "VMware", "VirtIO" }, &gpu, &option_index);
+    try utils.addBoolOption("VGA emulation", &has_vga_emulation, &option_index);
+    try utils.addBoolOption("Graphics acceleration", &has_graphics_acceleration, &option_index);
 
     // First sanity checks
     if (gpu == 1 or gpu == 3) has_vga_emulation = true;
@@ -644,10 +644,10 @@ fn graphics_gui_frame() !void {
 fn audio_gui_frame() !void {
     option_index = 0;
 
-    try utils.add_combo_option("Host device", &[_][]const u8{ "None", "SDL", "ALSA", "OSS", "PulseAudio", "sndio", "CoreAudio", "DirectSound", "WAV" }, &host_device, &option_index);
-    try utils.add_combo_option("Sound", &[_][]const u8{ "Sound Blaster 16", "AC97", "HDA ICH6", "HDA ICH9", "USB" }, &sound, &option_index);
-    try utils.add_bool_option("Input", &has_input, &option_index);
-    try utils.add_bool_option("Output", &has_output, &option_index);
+    try utils.addComboOption("Host device", &[_][]const u8{ "None", "SDL", "ALSA", "OSS", "PulseAudio", "sndio", "CoreAudio", "DirectSound", "WAV" }, &host_device, &option_index);
+    try utils.addComboOption("Sound", &[_][]const u8{ "Sound Blaster 16", "AC97", "HDA ICH6", "HDA ICH9", "USB" }, &sound, &option_index);
+    try utils.addBoolOption("Input", &has_input, &option_index);
+    try utils.addBoolOption("Output", &has_output, &option_index);
 
     // First sanity checks
     if (sound <= 1 or sound == 4) {
@@ -685,9 +685,9 @@ fn audio_gui_frame() !void {
 fn peripherals_gui_frame() !void {
     option_index = 0;
 
-    try utils.add_combo_option("Keyboard", &[_][]const u8{ "None", "USB", "VirtIO" }, &keyboard, &option_index);
-    try utils.add_combo_option("Mouse", &[_][]const u8{ "None", "USB", "VirtIO" }, &mouse, &option_index);
-    try utils.add_bool_option("Absolute mouse pointing", &has_mouse_absolute_pointing, &option_index);
+    try utils.addComboOption("Keyboard", &[_][]const u8{ "None", "USB", "VirtIO" }, &keyboard, &option_index);
+    try utils.addComboOption("Mouse", &[_][]const u8{ "None", "USB", "VirtIO" }, &mouse, &option_index);
+    try utils.addBoolOption("Absolute mouse pointing", &has_mouse_absolute_pointing, &option_index);
 
     if (try gui.button(@src(), "Save", .{ .expand = .horizontal, .color_style = .accent })) {
         // Write updated data to struct
@@ -720,12 +720,12 @@ fn drives_gui_frame() !void {
 
         try gui.label(@src(), "Drive {d}:", .{i}, .{ .id_extra = option_index });
 
-        try utils.add_bool_option("CD-ROM", &drive_options.is_cdrom, &option_index);
-        try utils.add_combo_option("Bus", &[_][]const u8{ "USB", "IDE", "SATA", "VirtIO" }, &drive_options.bus, &option_index);
-        try utils.add_combo_option("Format", &[_][]const u8{ "Raw", "QCOW2", "VMDK", "VDI", "VHD" }, &drive_options.format, &option_index);
-        try utils.add_combo_option("Cache", &[_][]const u8{ "None", "Writeback", "Writethrough", "Directsync", "Unsafe" }, &drive_options.cache, &option_index);
-        try utils.add_bool_option("SSD", &drive_options.is_ssd, &option_index);
-        try utils.add_text_option("Path", &drive_options.path, &option_index);
+        try utils.addBoolOption("CD-ROM", &drive_options.is_cdrom, &option_index);
+        try utils.addComboOption("Bus", &[_][]const u8{ "USB", "IDE", "SATA", "VirtIO" }, &drive_options.bus, &option_index);
+        try utils.addComboOption("Format", &[_][]const u8{ "Raw", "QCOW2", "VMDK", "VDI", "VHD" }, &drive_options.format, &option_index);
+        try utils.addComboOption("Cache", &[_][]const u8{ "None", "Writeback", "Writethrough", "Directsync", "Unsafe" }, &drive_options.cache, &option_index);
+        try utils.addBoolOption("SSD", &drive_options.is_ssd, &option_index);
+        try utils.addTextOption("Path", &drive_options.path, &option_index);
 
         try gui.separator(@src(), .{ .expand = .horizontal, .id_extra = option_index });
 
@@ -743,7 +743,7 @@ fn drives_gui_frame() !void {
             drive.*.format = @enumFromInt(drive_options.format);
             drive.*.cache = @enumFromInt(drive_options.cache);
             drive.*.is_ssd = drive_options.is_ssd;
-            drive.*.path = (utils.sanitize_output_text(&drive_options.path, false) catch {
+            drive.*.path = (utils.sanitizeOutputText(&drive_options.path, false) catch {
                 try gui.dialog(@src(), .{ .title = "Error", .message = "Please enter a valid drive path!" });
                 return;
             }).items;
@@ -764,7 +764,7 @@ fn drives_gui_frame() !void {
 }
 
 fn command_line_gui_frame() !void {
-    var qemu_arguments = try qemu.get_arguments(vm, drives);
+    var qemu_arguments = try qemu.getArguments(vm, drives);
     defer qemu_arguments.deinit();
 
     var arguments = std.ArrayList(u8).init(main.gpa);

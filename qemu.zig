@@ -6,7 +6,7 @@ const utils = @import("utils.zig");
 const permanent_buffers = @import("permanent_buffers.zig");
 const path = @import("path.zig");
 
-pub fn get_arguments(vm: structs.VirtualMachine, drives: []*structs.Drive) !std.ArrayList([]const u8) {
+pub fn getArguments(vm: structs.VirtualMachine, drives: []*structs.Drive) !std.ArrayList([]const u8) {
     var list = std.ArrayList([]const u8).init(main.gpa);
 
     const architecture_str = switch (vm.basic.architecture) {
@@ -240,25 +240,29 @@ pub fn get_arguments(vm: structs.VirtualMachine, drives: []*structs.Drive) !std.
         .bios => {
             if (vm.basic.architecture != .amd64) unreachable;
 
-            var firmware = path.lookup(.{if (vm.qemu.override_qemu_path) vm.qemu.qemu_path else switch (builtin.os.tag) {
-                .linux => "/usr/share/qemu",
+            const paths = if (vm.qemu.override_qemu_path) &[_][]const u8{vm.qemu.qemu_path} else switch (builtin.os.tag) {
+                .linux => &[_][]const u8{"/usr/share/qemu"},
                 else => unreachable, // TODO: Firmware path auto-detection for Windows and macOS
-            }}, .{"bios.bin"});
+            };
+
+            const names = &[_][]const u8{"bios.bin"};
+
+            var firmware = path.lookup(paths, names);
 
             try list.append("-bios");
             try list.append(firmware);
         },
         .uefi => {
-            const paths: []const u8 = if (vm.qemu.override_qemu_path) vm.qemu.qemu_path else switch (vm.basic.architecture) {
-                .amd64 => if (builtin.os.tag == .linux) .{ "/usr/share/qemu", "/usr/share/OVMF/x64" } else unreachable, // TODO: Firmware path auto-detection for Windows and macOS
+            const paths = if (vm.qemu.override_qemu_path) &[_][]const u8{vm.qemu.qemu_path} else switch (vm.basic.architecture) {
+                .amd64 => if (builtin.os.tag == .linux) &[_][]const u8{ "/usr/share/qemu", "/usr/share/OVMF/x64" } else unreachable, // TODO: Firmware path auto-detection for Windows and macOS
             };
 
-            const codes: []const u8 = switch (vm.basic.architecture) {
-                .amd64 => .{ "edk2-x86_64-code.fd", "OVMF_CODE.fd" },
+            const codes = switch (vm.basic.architecture) {
+                .amd64 => &[_][]const u8{ "edk2-x86_64-code.fd", "OVMF_CODE.fd" },
             };
 
-            const variables: []const u8 = switch (vm.basic.architecture) {
-                .amd64 => .{ "edk2-i386-vars.fd", "OVMF_VARS.fd" },
+            const variables = switch (vm.basic.architecture) {
+                .amd64 => &[_][]const u8{ "edk2-i386-vars.fd", "OVMF_VARS.fd" },
             };
 
             const code = path.lookup(paths, codes);

@@ -28,7 +28,7 @@ pub fn init() void {
     has_boot_image = false;
 }
 
-pub fn gui_frame() !void {
+pub fn guiFrame() !void {
     if (!show) {
         return;
     }
@@ -40,38 +40,38 @@ pub fn gui_frame() !void {
 
     option_index = 0;
 
-    try utils.add_text_option("Name", &name, &option_index);
-    try utils.add_text_option("RAM (in MiB)", &ram, &option_index);
-    try utils.add_text_option("Cores", &cores, &option_index);
-    try utils.add_text_option("Threads", &threads, &option_index);
-    try utils.add_text_option("Disk size (in GiB)", &disk, &option_index);
-    try utils.add_bool_option("Add a boot image", &has_boot_image, &option_index);
+    try utils.addTextOption("Name", &name, &option_index);
+    try utils.addTextOption("RAM (in MiB)", &ram, &option_index);
+    try utils.addTextOption("Cores", &cores, &option_index);
+    try utils.addTextOption("Threads", &threads, &option_index);
+    try utils.addTextOption("Disk size (in GiB)", &disk, &option_index);
+    try utils.addBoolOption("Add a boot image", &has_boot_image, &option_index);
     if (has_boot_image) {
-        try utils.add_text_option("Boot image", &boot_image, &option_index);
+        try utils.addTextOption("Boot image", &boot_image, &option_index);
     }
 
     if (try gui.button(@src(), "Create", .{ .expand = .horizontal, .color_style = .accent })) {
-        var actual_name = utils.sanitize_output_text(&name, true) catch {
+        var actual_name = utils.sanitizeOutputText(&name, true) catch {
             try gui.dialog(@src(), .{ .title = "Error", .message = "Please enter a valid name!" });
             return;
         };
-        var actual_ram = utils.sanitize_output_number(&ram) catch {
+        var actual_ram = utils.sanitizeOutputNumber(&ram) catch {
             try gui.dialog(@src(), .{ .title = "Error", .message = "Please enter a valid amount of RAM!" });
             return;
         };
-        var actual_cores = utils.sanitize_output_number(&cores) catch {
+        var actual_cores = utils.sanitizeOutputNumber(&cores) catch {
             try gui.dialog(@src(), .{ .title = "Error", .message = "Please enter a valid amount of cores!" });
             return;
         };
-        var actual_threads = utils.sanitize_output_number(&threads) catch {
+        var actual_threads = utils.sanitizeOutputNumber(&threads) catch {
             try gui.dialog(@src(), .{ .title = "Error", .message = "Please enter a valid amount of threads!" });
             return;
         };
-        var actual_disk = utils.sanitize_output_number(&disk) catch {
+        var actual_disk = utils.sanitizeOutputNumber(&disk) catch {
             try gui.dialog(@src(), .{ .title = "Error", .message = "Please enter a valid disk size!" });
             return;
         };
-        var actual_boot_image = utils.sanitize_output_text(&boot_image, false) catch {
+        var actual_boot_image = utils.sanitizeOutputText(&boot_image, false) catch {
             try gui.dialog(@src(), .{ .title = "Error", .message = "Please enter a valid boot image path!" });
             return;
         };

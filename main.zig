@@ -150,6 +150,6 @@ fn gui_frame() !void {
         }
     }
 
-    try new_virtual_machine.gui_frame();
-    try edit_virtual_machine.gui_frame();
+    try new_virtual_machine.guiFrame();
+    try edit_virtual_machine.guiFrame();
 }
