@@ -2,9 +2,9 @@
     .name = "ZigEmu",
     .version = "1.0.0",
     .dependencies = .{
-        .gui = .{
-            .url = "https://github.com/david-vanderson/gui/archive/25908eebe49fd0777d0399e58eb723c618671178.tar.gz",
-            .hash = "122002c7fa9a5d6a904b4ead251aebd4c1449b1121187471fca30ec4e8a350a7fb0a",
+        .dvui = .{
+            .url = "https://github.com/david-vanderson/dvui/archive/79a4baf78b59de5bf80a99b5e6e85580666e35ae.tar.gz",
+            .hash = "12207d2002b899977b085ef22187b32f253f2653361b5a15ae8d271c96129142cfda",
         },
         .ini = .{
             .url = "https://github.com/AnErrupTion/zig-ini/archive/a40f3cae04939de0d795812a73633e0563cf3132.tar.gz",

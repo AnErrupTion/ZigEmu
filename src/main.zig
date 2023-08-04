@@ -60,7 +60,7 @@ pub fn main() !void {
     });
     defer backend.deinit();
 
-    var win = try gui.Window.init(@src(), 0, gpa, backend.guiBackend());
+    var win = try gui.Window.init(@src(), 0, gpa, backend.backend());
     defer win.deinit();
 
     win.theme = &gui.Adwaita.dark;

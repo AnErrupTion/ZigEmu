@@ -14,18 +14,18 @@ pub fn build(b: *std.build.Builder) !void {
     const ini = b.dependency("ini", .{});
     exe.addModule("ini", ini.module("ini"));
 
-    const gui = b.dependency("gui", .{ .target = target, .optimize = optimize });
-    exe.addModule("gui", gui.module("gui"));
-    exe.addModule("SDLBackend", gui.module("SDLBackend"));
+    const dvui = b.dependency("dvui", .{ .target = target, .optimize = optimize });
+    exe.addModule("gui", dvui.module("dvui"));
+    exe.addModule("SDLBackend", dvui.module("SDLBackend"));
 
-    const freetype = gui.builder.dependency("freetype", .{ .target = target, .optimize = optimize });
+    const freetype = dvui.builder.dependency("freetype", .{ .target = target, .optimize = optimize });
     exe.linkLibrary(freetype.artifact("freetype"));
 
     exe.linkSystemLibrary("SDL2");
     exe.linkLibC();
 
     const compile_step = b.step("ZigEmu", "Compile ZigEmu");
-    compile_step.dependOn(&b.addInstallArtifact(exe).step);
+    compile_step.dependOn(&b.addInstallArtifact(exe, .{}).step);
     b.getInstallStep().dependOn(compile_step);
 
     const run_cmd = b.addRunArtifact(exe);
