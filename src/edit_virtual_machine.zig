@@ -674,7 +674,7 @@ fn audio_gui_frame() !void {
         } else if (builtin.os.tag == .macos and ((host_device >= 3 and host_device <= 6) or host_device == 8)) {
             try gui.dialog(@src(), .{ .title = "Error", .message = try std.fmt.bufPrint(&format_buffer, "Audio host device \"{}\" is unsupported by macOS.", .{vm.audio.host_device}) });
             return;
-        } else if (host_device >= 7) {
+        } else if (host_device == 7 or host_device == 8) {
             try gui.dialog(@src(), .{ .title = "Error", .message = try std.fmt.bufPrint(&format_buffer, "Audio host device \"{}\" is unsupported by Linux/BSD.", .{vm.audio.host_device}) });
             return;
         }
