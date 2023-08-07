@@ -169,6 +169,16 @@ pub fn guiFrame() !void {
                 return;
             };
         }
+        if (try gui.button(@src(), "Delete", .{ .expand = .horizontal, .color_style = .err })) {
+            // Delete VM directory
+            try main.virtual_machines_directory.deleteTree(vm.basic.name);
+
+            // Remove VM from array list
+            _ = main.virtual_machines.swapRemove(vm_index);
+
+            // Close window
+            show = false;
+        }
     }
 
     {
