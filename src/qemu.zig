@@ -374,6 +374,16 @@ pub fn getArguments(vm: structs.VirtualMachine, drives: []*structs.Drive) !std.A
 
                 try list.append(vga);
             },
+            .cirrus => {
+                if (vm.graphics.has_graphics_acceleration) unreachable;
+                if (!vm.graphics.has_vga_emulation) unreachable;
+
+                var cirrus = try std.fmt.allocPrint(main.gpa, "cirrus-vga,bus={s}.0", .{pci_bus_type});
+
+                try permanent_buffers.arrays.append(cirrus);
+
+                try list.append(cirrus);
+            },
             .vmware => {
                 if (vm.graphics.has_graphics_acceleration) unreachable;
                 if (!vm.graphics.has_vga_emulation) unreachable;
@@ -575,6 +585,17 @@ pub fn getArguments(vm: structs.VirtualMachine, drives: []*structs.Drive) !std.A
                 if (drive.is_cdrom) unreachable;
 
                 var bus = try std.fmt.allocPrint(main.gpa, "usb-storage,drive=drive{d},bus=usb.0,removable={d}", .{ i, if (drive.is_removable) "true" else "false" });
+
+                try permanent_buffers.arrays.append(bus);
+
+                try list.append("-device");
+                try list.append(bus);
+            },
+            .nvme => {
+                if (drive.is_cdrom) unreachable;
+                if (drive.is_removable) unreachable;
+
+                var bus = try std.fmt.allocPrint(main.gpa, "nvme,drive=drive{d},bus={s}.0,serial=deadbeef", .{ i, pci_bus_type });
 
                 try permanent_buffers.arrays.append(bus);
 

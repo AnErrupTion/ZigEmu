@@ -184,6 +184,7 @@ pub const Display = enum {
 pub const Gpu = enum {
     none,
     vga,
+    cirrus,
     qxl,
     vmware,
     virtio,
@@ -226,6 +227,7 @@ pub const DriveBus = enum {
     usb,
     ide,
     sata,
+    nvme,
     virtio,
 };
 

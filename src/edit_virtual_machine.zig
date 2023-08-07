@@ -16,47 +16,47 @@ var format_buffer = std.mem.zeroes([1024]u8);
 var drives: []*structs.Drive = undefined;
 
 var vm_directory: std.fs.Dir = undefined;
-var initialized = false;
+var initialized: bool = undefined;
 
-var setting: u64 = 0;
-var option_index: u64 = 0;
+var setting: u64 = undefined;
+var option_index: u64 = undefined;
 
-var override_qemu_path = false;
+var override_qemu_path: bool = undefined;
 var qemu_path = std.mem.zeroes([512]u8);
 
 var name = std.mem.zeroes([128]u8);
-var architecture: u64 = 0;
-var has_acceleration = false;
-var chipset: u64 = 0;
-var usb_type: u64 = 0;
-var has_ahci = false;
+var architecture: u64 = undefined;
+var has_acceleration: bool = undefined;
+var chipset: u64 = undefined;
+var usb_type: u64 = undefined;
+var has_ahci: bool = undefined;
 
-var firmware_type: u64 = 0;
+var firmware_type: u64 = undefined;
 var firmware_path = std.mem.zeroes([512]u8);
 
 var ram = std.mem.zeroes([32]u8);
 
-var cpu: u64 = 0;
+var cpu: u64 = undefined;
 var features = std.mem.zeroes([1024]u8);
 var cores = std.mem.zeroes([16]u8);
 var threads = std.mem.zeroes([16]u8);
 
-var network_type: u64 = 0;
-var interface: u64 = 0;
+var network_type: u64 = undefined;
+var interface: u64 = undefined;
 
-var display: u64 = 0;
-var gpu: u64 = 0;
-var has_vga_emulation = false;
-var has_graphics_acceleration = false;
+var display: u64 = undefined;
+var gpu: u64 = undefined;
+var has_vga_emulation: bool = undefined;
+var has_graphics_acceleration: bool = undefined;
 
-var host_device: u64 = 0;
-var sound: u64 = 0;
+var host_device: u64 = undefined;
+var sound: u64 = undefined;
 var has_input = false;
 var has_output = false;
 
-var keyboard: u64 = 0;
-var mouse: u64 = 0;
-var has_mouse_absolute_pointing = false;
+var keyboard: u64 = undefined;
+var mouse: u64 = undefined;
+var has_mouse_absolute_pointing: bool = undefined;
 
 var drives_options = std.mem.zeroes([5]struct {
     is_cdrom: bool,
@@ -91,6 +91,7 @@ pub fn init() !void {
     try init_peripherals();
     try init_drives();
 
+    setting = 0;
     initialized = true;
 }
 
@@ -107,7 +108,6 @@ pub fn guiFrame() !void {
         if (initialized) {
             try deinit();
 
-            setting = 0;
             initialized = false;
         }
 
@@ -340,10 +340,10 @@ fn basic_gui_frame() !void {
     option_index = 0;
 
     try utils.addTextOption("Name", &name, &option_index);
-    try utils.addComboOption("Architecture", &[_][]const u8{"AMD64"}, &architecture, &option_index);
+    try utils.addComboOption("Architecture", &.{"AMD64"}, &architecture, &option_index);
     try utils.addBoolOption("Hardware acceleration", &has_acceleration, &option_index); // TODO: Detect host architecture
-    try utils.addComboOption("Chipset", &[_][]const u8{ "i440FX", "Q35" }, &chipset, &option_index);
-    try utils.addComboOption("USB type", &[_][]const u8{ "None", "OHCI (Open 1.0)", "UHCI (Proprietary 1.0)", "EHCI (2.0)", "XHCI (3.0)" }, &usb_type, &option_index);
+    try utils.addComboOption("Chipset", &.{ "i440FX", "Q35" }, &chipset, &option_index);
+    try utils.addComboOption("USB type", &.{ "None", "OHCI (Open 1.0)", "UHCI (Proprietary 1.0)", "EHCI (2.0)", "XHCI (3.0)" }, &usb_type, &option_index);
     try utils.addBoolOption("Use AHCI", &has_ahci, &option_index);
 
     if (try gui.button(@src(), "Save", .{ .expand = .horizontal, .color_style = .accent })) {
@@ -404,7 +404,7 @@ fn basic_gui_frame() !void {
 fn firmware_gui_frame() !void {
     option_index = 0;
 
-    try utils.addComboOption("Type", &[_][]const u8{ "BIOS", "UEFI", "Custom PC", "Custom PFlash" }, &firmware_type, &option_index);
+    try utils.addComboOption("Type", &.{ "BIOS", "UEFI", "Custom PC", "Custom PFlash" }, &firmware_type, &option_index);
     if (firmware_type >= 2) try utils.addTextOption("Path", &firmware_path, &option_index);
 
     if (try gui.button(@src(), "Save", .{ .expand = .horizontal, .color_style = .accent })) {
@@ -446,7 +446,7 @@ fn memory_gui_frame() !void {
 fn processor_gui_frame() !void {
     option_index = 0;
 
-    try utils.addComboOption("CPU", &[_][]const u8{
+    try utils.addComboOption("CPU", &.{
         "486-v1",
         "486",
         "athlon-v1",
@@ -614,8 +614,8 @@ fn processor_gui_frame() !void {
 fn network_gui_frame() !void {
     option_index = 0;
 
-    try utils.addComboOption("Type", &[_][]const u8{ "None", "NAT" }, &network_type, &option_index);
-    try utils.addComboOption("Interface", &[_][]const u8{ "RTL8139", "E1000", "E1000e", "VMware", "USB", "VirtIO" }, &interface, &option_index);
+    try utils.addComboOption("Type", &.{ "None", "NAT" }, &network_type, &option_index);
+    try utils.addComboOption("Interface", &.{ "RTL8139", "E1000", "E1000e", "VMware", "USB", "VirtIO" }, &interface, &option_index);
 
     if (try gui.button(@src(), "Save", .{ .expand = .horizontal, .color_style = .accent })) {
         // Write updated data to struct
@@ -630,14 +630,14 @@ fn network_gui_frame() !void {
 fn graphics_gui_frame() !void {
     option_index = 0;
 
-    try utils.addComboOption("Display", &[_][]const u8{ "None", "Auto", "SDL", "GTK", "SPICE", "Cocoa", "D-Bus" }, &display, &option_index);
-    try utils.addComboOption("GPU", &[_][]const u8{ "None", "VGA", "QXL", "VMware", "VirtIO" }, &gpu, &option_index);
+    try utils.addComboOption("Display", &.{ "None", "Auto", "SDL", "GTK", "SPICE", "Cocoa", "D-Bus" }, &display, &option_index);
+    try utils.addComboOption("GPU", &.{ "None", "VGA", "Cirrus", "QXL", "VMware", "VirtIO" }, &gpu, &option_index);
     try utils.addBoolOption("VGA emulation", &has_vga_emulation, &option_index);
     try utils.addBoolOption("Graphics acceleration", &has_graphics_acceleration, &option_index);
 
     // First sanity checks
-    if (gpu == 1 or gpu == 3) has_vga_emulation = true;
-    if (gpu >= 1 and gpu <= 3) has_graphics_acceleration = false;
+    if (gpu == 1 or gpu == 2 or gpu == 4) has_vga_emulation = true;
+    if (gpu >= 1 and gpu <= 4) has_graphics_acceleration = false;
 
     if (try gui.button(@src(), "Save", .{ .expand = .horizontal, .color_style = .accent })) {
         // Write updated data to struct
@@ -666,8 +666,8 @@ fn graphics_gui_frame() !void {
 fn audio_gui_frame() !void {
     option_index = 0;
 
-    try utils.addComboOption("Host device", &[_][]const u8{ "None", "Auto", "SDL", "ALSA", "OSS", "PulseAudio", "sndio", "CoreAudio", "DirectSound", "WAV" }, &host_device, &option_index);
-    try utils.addComboOption("Sound", &[_][]const u8{ "Sound Blaster 16", "AC97", "HDA ICH6", "HDA ICH9", "USB" }, &sound, &option_index);
+    try utils.addComboOption("Host device", &.{ "None", "Auto", "SDL", "ALSA", "OSS", "PulseAudio", "sndio", "CoreAudio", "DirectSound", "WAV" }, &host_device, &option_index);
+    try utils.addComboOption("Sound", &.{ "Sound Blaster 16", "AC97", "HDA ICH6", "HDA ICH9", "USB" }, &sound, &option_index);
     try utils.addBoolOption("Input", &has_input, &option_index);
     try utils.addBoolOption("Output", &has_output, &option_index);
 
@@ -707,8 +707,8 @@ fn audio_gui_frame() !void {
 fn peripherals_gui_frame() !void {
     option_index = 0;
 
-    try utils.addComboOption("Keyboard", &[_][]const u8{ "None", "USB", "VirtIO" }, &keyboard, &option_index);
-    try utils.addComboOption("Mouse", &[_][]const u8{ "None", "USB", "VirtIO" }, &mouse, &option_index);
+    try utils.addComboOption("Keyboard", &.{ "None", "USB", "VirtIO" }, &keyboard, &option_index);
+    try utils.addComboOption("Mouse", &.{ "None", "USB", "VirtIO" }, &mouse, &option_index);
     try utils.addBoolOption("Absolute mouse pointing", &has_mouse_absolute_pointing, &option_index);
 
     if (try gui.button(@src(), "Save", .{ .expand = .horizontal, .color_style = .accent })) {
@@ -744,16 +744,16 @@ fn drives_gui_frame() !void {
 
         try utils.addBoolOption("CD-ROM", &drive_options.is_cdrom, &option_index);
         try utils.addBoolOption("Removable", &drive_options.is_removable, &option_index);
-        try utils.addComboOption("Bus", &[_][]const u8{ "USB", "IDE", "SATA", "VirtIO" }, &drive_options.bus, &option_index);
-        try utils.addComboOption("Format", &[_][]const u8{ "Raw", "QCOW2", "VMDK", "VDI", "VHD" }, &drive_options.format, &option_index);
-        try utils.addComboOption("Cache", &[_][]const u8{ "None", "Writeback", "Writethrough", "Directsync", "Unsafe" }, &drive_options.cache, &option_index);
+        try utils.addComboOption("Bus", &.{ "USB", "IDE", "SATA", "NVMe", "VirtIO" }, &drive_options.bus, &option_index);
+        try utils.addComboOption("Format", &.{ "Raw", "QCOW2", "VMDK", "VDI", "VHD" }, &drive_options.format, &option_index);
+        try utils.addComboOption("Cache", &.{ "None", "Writeback", "Writethrough", "Directsync", "Unsafe" }, &drive_options.cache, &option_index);
         try utils.addBoolOption("SSD", &drive_options.is_ssd, &option_index);
         try utils.addTextOption("Path", &drive_options.path, &option_index);
 
         try gui.separator(@src(), .{ .expand = .horizontal, .id_extra = option_index });
 
         // First sanity checks
-        if (drive_options.bus == 0 or drive_options.bus == 3) drive_options.*.is_cdrom = false;
+        if (drive_options.bus == 0 or drive_options.bus >= 3) drive_options.*.is_cdrom = false;
         if (drive_options.bus != 0) drive_options.*.is_removable = false;
     }
 
