@@ -808,7 +808,7 @@ fn save_changes() !void {
     try ini.writeStruct(vm, file.writer());
 
     // Update VM in array list
-    try main.virtual_machines.replaceRange(vm_index, 1, &[_]structs.VirtualMachine{vm});
+    main.virtual_machines.items[vm_index] = vm;
 }
 
 fn set_buffer(buffer: []u8, value: []const u8) void {
