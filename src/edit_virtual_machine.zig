@@ -6,7 +6,6 @@ const structs = @import("structs.zig");
 const main = @import("main.zig");
 const utils = @import("utils.zig");
 const qemu = @import("qemu.zig");
-const Tag = std.Target.Os.Tag;
 
 pub var vm: structs.VirtualMachine = undefined;
 pub var show = false;
@@ -611,7 +610,7 @@ fn network_gui_frame() !void {
 fn graphics_gui_frame() !void {
     option_index = 0;
 
-    try utils.addComboOption("Display", &[_][]const u8{ "None", "SDL", "GTK", "SPICE", "Cocoa", "D-Bus" }, &display, &option_index);
+    try utils.addComboOption("Display", &[_][]const u8{ "None", "Auto", "SDL", "GTK", "SPICE", "Cocoa", "D-Bus" }, &display, &option_index);
     try utils.addComboOption("GPU", &[_][]const u8{ "None", "VGA", "QXL", "VMware", "VirtIO" }, &gpu, &option_index);
     try utils.addBoolOption("VGA emulation", &has_vga_emulation, &option_index);
     try utils.addBoolOption("Graphics acceleration", &has_graphics_acceleration, &option_index);
@@ -631,8 +630,11 @@ fn graphics_gui_frame() !void {
         if (vm.graphics.display == .cocoa and builtin.os.tag != .macos) {
             try gui.dialog(@src(), .{ .title = "Error", .message = "Display \"cocoa\" is only supported on macOS." });
             return;
-        } else if (vm.graphics.display == .dbus and builtin.os.tag != .linux and !Tag.isBSD(builtin.os.tag)) {
-            try gui.dialog(@src(), .{ .title = "Error", .message = "Display \"cocoa\" is only supported on Linux/BSD." });
+        } else if (vm.graphics.display == .dbus and !switch (builtin.os.tag) {
+            .linux, .kfreebsd, .freebsd, .openbsd, .netbsd, .dragonfly => true,
+            else => false,
+        }) {
+            try gui.dialog(@src(), .{ .title = "Error", .message = "Display \"dbus\" is only supported on Linux/BSD." });
             return;
         }
 
@@ -644,7 +646,7 @@ fn graphics_gui_frame() !void {
 fn audio_gui_frame() !void {
     option_index = 0;
 
-    try utils.addComboOption("Host device", &[_][]const u8{ "None", "SDL", "ALSA", "OSS", "PulseAudio", "sndio", "CoreAudio", "DirectSound", "WAV" }, &host_device, &option_index);
+    try utils.addComboOption("Host device", &[_][]const u8{ "None", "Auto", "SDL", "ALSA", "OSS", "PulseAudio", "sndio", "CoreAudio", "DirectSound", "WAV" }, &host_device, &option_index);
     try utils.addComboOption("Sound", &[_][]const u8{ "Sound Blaster 16", "AC97", "HDA ICH6", "HDA ICH9", "USB" }, &sound, &option_index);
     try utils.addBoolOption("Input", &has_input, &option_index);
     try utils.addBoolOption("Output", &has_output, &option_index);
@@ -666,14 +668,14 @@ fn audio_gui_frame() !void {
         if (vm.audio.sound == .usb and vm.basic.usb_type == .none) {
             try gui.dialog(@src(), .{ .title = "Error", .message = "Sound device \"usb\" requires a USB controller." });
             return;
-        } else if (builtin.os.tag == .windows and host_device >= 2 and host_device <= 6) {
+        } else if (builtin.os.tag == .windows and host_device >= 3 and host_device <= 7) {
             try gui.dialog(@src(), .{ .title = "Error", .message = try std.fmt.bufPrint(&format_buffer, "Audio host device \"{}\" is unsupported by Windows.", .{vm.audio.host_device}) });
             return;
-        } else if (builtin.os.tag == .macos and ((host_device >= 2 and host_device <= 5) or host_device == 7)) {
+        } else if (builtin.os.tag == .macos and ((host_device >= 3 and host_device <= 6) or host_device == 8)) {
             try gui.dialog(@src(), .{ .title = "Error", .message = try std.fmt.bufPrint(&format_buffer, "Audio host device \"{}\" is unsupported by macOS.", .{vm.audio.host_device}) });
             return;
-        } else if (host_device == 6 or host_device == 7) {
-            try gui.dialog(@src(), .{ .title = "Error", .message = try std.fmt.bufPrint(&format_buffer, "Audio host device \"{}\" is unsupported by your Unix-based OS.", .{vm.audio.host_device}) });
+        } else if (host_device >= 7) {
+            try gui.dialog(@src(), .{ .title = "Error", .message = try std.fmt.bufPrint(&format_buffer, "Audio host device \"{}\" is unsupported by Linux/BSD.", .{vm.audio.host_device}) });
             return;
         }
 

@@ -152,6 +152,10 @@ pub fn getArguments(vm: structs.VirtualMachine, drives: []*structs.Drive) !std.A
     };
     const display_str = switch (vm.graphics.display) {
         .none => "none",
+        .auto => switch (builtin.os.tag) {
+            .macos => "cocoa",
+            else => "sdl",
+        },
         .sdl => "sdl",
         .gtk => "gtk",
         .spice => "spice-app",
@@ -396,43 +400,27 @@ pub fn getArguments(vm: structs.VirtualMachine, drives: []*structs.Drive) !std.A
         }
     }
 
+    try list.append("-audiodev");
+
     switch (vm.audio.host_device) {
         .none => {
-            try list.append("-audiodev");
             try list.append("none,id=hostdev");
         },
-        .sdl => {
-            try list.append("-audiodev");
-            try list.append("sdl,id=hostdev");
+        .auto => switch (builtin.os.tag) {
+            .windows => try list.append("dsound,id=hostdev"),
+            .macos => try list.append("coreaudio,id=hostdev"),
+            .linux => try list.append("alsa,id=hostdev"),
+            .kfreebsd, .freebsd, .openbsd, .netbsd, .dragonfly => try list.append("sndio,id=hostdev"),
+            else => try list.append("sdl,id=hostdev"),
         },
-        .alsa => {
-            try list.append("-audiodev");
-            try list.append("alsa,id=hostdev");
-        },
-        .oss => {
-            try list.append("-audiodev");
-            try list.append("oss,id=hostdev");
-        },
-        .pulseaudio => {
-            try list.append("-audiodev");
-            try list.append("pa,id=hostdev");
-        },
-        .sndio => {
-            try list.append("-audiodev");
-            try list.append("sndio,id=hostdev");
-        },
-        .coreaudio => {
-            try list.append("-audiodev");
-            try list.append("coreaudio,id=hostdev");
-        },
-        .directsound => {
-            try list.append("-audiodev");
-            try list.append("dsound,id=hostdev");
-        },
-        .wav => {
-            try list.append("-audiodev");
-            try list.append("wav,id=hostdev");
-        },
+        .sdl => try list.append("sdl,id=hostdev"),
+        .alsa => try list.append("alsa,id=hostdev"),
+        .oss => try list.append("oss,id=hostdev"),
+        .pulseaudio => try list.append("pa,id=hostdev"),
+        .sndio => try list.append("sndio,id=hostdev"),
+        .coreaudio => try list.append("coreaudio,id=hostdev"),
+        .directsound => try list.append("dsound,id=hostdev"),
+        .wav => try list.append("wav,id=hostdev"),
     }
 
     switch (vm.audio.sound) {

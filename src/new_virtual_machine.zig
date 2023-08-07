@@ -130,13 +130,13 @@ pub fn guiFrame() !void {
                 .interface = .e1000,
             },
             .graphics = .{
-                .display = .sdl,
+                .display = .auto,
                 .gpu = .vga,
                 .has_vga_emulation = true,
                 .has_graphics_acceleration = false,
             },
             .audio = .{
-                .host_device = .none,
+                .host_device = .auto,
                 .sound = .ac97,
                 .has_input = false,
                 .has_output = true,

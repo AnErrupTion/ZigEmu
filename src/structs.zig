@@ -173,6 +173,7 @@ pub const Interface = enum {
 
 pub const Display = enum {
     none,
+    auto,
     sdl,
     gtk,
     spice,
@@ -190,6 +191,7 @@ pub const Gpu = enum {
 
 pub const HostDevice = enum {
     none,
+    auto,
     sdl,
     alsa,
     oss,
