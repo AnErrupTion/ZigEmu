@@ -136,17 +136,14 @@ fn gui_frame() !void {
         var scroll = try gui.scrollArea(@src(), .{}, .{ .expand = .both, .color_style = .window });
         defer scroll.deinit();
 
-        var index: u64 = 0;
-
-        for (virtual_machines.items) |vm| {
-            if (try gui.button(@src(), vm.basic.name, .{ .expand = .both, .color_style = .accent, .id_extra = index })) {
+        for (virtual_machines.items, 0..) |vm, i| {
+            if (try gui.button(@src(), vm.basic.name, .{ .expand = .both, .color_style = .accent, .id_extra = i })) {
                 edit_virtual_machine.vm = vm;
+                edit_virtual_machine.vm_index = i;
                 edit_virtual_machine.show = true;
 
                 try edit_virtual_machine.init();
             }
-
-            index += 1;
         }
     }
 

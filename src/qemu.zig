@@ -310,9 +310,7 @@ pub fn getArguments(vm: structs.VirtualMachine, drives: []*structs.Drive) !std.A
         try list.append("-netdev");
 
         switch (vm.network.type) {
-            .nat => {
-                try list.append("user,id=nettype");
-            },
+            .nat => try list.append("user,id=nettype"),
             else => unreachable,
         }
 
@@ -343,9 +341,7 @@ pub fn getArguments(vm: structs.VirtualMachine, drives: []*structs.Drive) !std.A
                 try permanent_buffers.arrays.append(network);
                 try list.append(network);
             },
-            .usb => {
-                try list.append("usb-net,bus=usb.0,netdev=nettype");
-            },
+            .usb => try list.append("usb-net,bus=usb.0,netdev=nettype"),
             .virtio => {
                 var network = try std.fmt.allocPrint(main.gpa, "virtio-net-pci,bus={s}.0,netdev=nettype", .{pci_bus_type});
 
@@ -403,9 +399,7 @@ pub fn getArguments(vm: structs.VirtualMachine, drives: []*structs.Drive) !std.A
     try list.append("-audiodev");
 
     switch (vm.audio.host_device) {
-        .none => {
-            try list.append("none,id=hostdev");
-        },
+        .none => try list.append("none,id=hostdev"),
         .auto => switch (builtin.os.tag) {
             .windows => try list.append("dsound,id=hostdev"),
             .macos => try list.append("coreaudio,id=hostdev"),

@@ -8,6 +8,7 @@ const utils = @import("utils.zig");
 const qemu = @import("qemu.zig");
 
 pub var vm: structs.VirtualMachine = undefined;
+pub var vm_index: u64 = undefined;
 pub var show = false;
 
 var format_buffer = std.mem.zeroes([1024]u8);
@@ -334,6 +335,8 @@ fn basic_gui_frame() !void {
     try utils.addBoolOption("Use AHCI", &has_ahci, &option_index);
 
     if (try gui.button(@src(), "Save", .{ .expand = .horizontal, .color_style = .accent })) {
+        const old_name = vm.basic.name;
+
         // Write updated data to struct
         vm.basic.name = (utils.sanitizeOutputText(&name, true) catch {
             try gui.dialog(@src(), .{ .title = "Error", .message = "Please enter a valid name!" });
@@ -344,6 +347,11 @@ fn basic_gui_frame() !void {
         vm.basic.chipset = @enumFromInt(chipset);
         vm.basic.usb_type = @enumFromInt(usb_type);
         vm.basic.has_ahci = has_ahci;
+
+        // Rename VM folder if name has changed
+        if (!std.mem.eql(u8, old_name, vm.basic.name)) {
+            try main.virtual_machines_directory.rename(old_name, vm.basic.name);
+        }
 
         // Sanity checks
         if (vm.processor.cpu == .host and !vm.basic.has_acceleration) {
@@ -783,11 +791,14 @@ fn command_line_gui_frame() !void {
 }
 
 fn save_changes() !void {
-    // TODO: If we change the VM name, we need to change the directory name as well
     var file = try std.fs.cwd().createFile("config.ini", .{});
     defer file.close();
 
+    // Save changes to disk
     try ini.writeStruct(vm, file.writer());
+
+    // Update VM in array list
+    try main.virtual_machines.replaceRange(vm_index, 1, &[_]structs.VirtualMachine{vm});
 }
 
 fn set_buffer(buffer: []u8, value: []const u8) void {
