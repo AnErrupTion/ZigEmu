@@ -549,6 +549,8 @@ pub fn getArguments(vm: structs.VirtualMachine, drives: []*structs.Drive) !std.A
 
         switch (drive.bus) {
             .ide => {
+                if (drive.is_removable) unreachable;
+
                 var bus = if (drive.is_cdrom) try std.fmt.allocPrint(main.gpa, "ide-cd,drive=drive{d}", .{i}) else try std.fmt.allocPrint(main.gpa, "ide-hd,drive=drive{d}", .{i});
 
                 try permanent_buffers.arrays.append(bus);
@@ -557,6 +559,8 @@ pub fn getArguments(vm: structs.VirtualMachine, drives: []*structs.Drive) !std.A
                 try list.append(bus);
             },
             .sata => {
+                if (drive.is_removable) unreachable;
+
                 var bus = if (drive.is_cdrom) try std.fmt.allocPrint(main.gpa, "ide-cd,drive=drive{d},bus=ahci.{d}", .{ i, ahci_bus }) else try std.fmt.allocPrint(main.gpa, "ide-hd,drive=drive{d},bus=ahci.{d}", .{ i, ahci_bus });
 
                 ahci_bus += 1;
@@ -570,7 +574,7 @@ pub fn getArguments(vm: structs.VirtualMachine, drives: []*structs.Drive) !std.A
                 if (vm.basic.usb_type == .none) unreachable;
                 if (drive.is_cdrom) unreachable;
 
-                var bus = try std.fmt.allocPrint(main.gpa, "usb-storage,drive=drive{d},bus=usb.0", .{i});
+                var bus = try std.fmt.allocPrint(main.gpa, "usb-storage,drive=drive{d},bus=usb.0,removable={d}", .{ i, if (drive.is_removable) "true" else "false" });
 
                 try permanent_buffers.arrays.append(bus);
 
@@ -579,6 +583,7 @@ pub fn getArguments(vm: structs.VirtualMachine, drives: []*structs.Drive) !std.A
             },
             .virtio => {
                 if (drive.is_cdrom) unreachable;
+                if (drive.is_removable) unreachable;
 
                 var bus = try std.fmt.allocPrint(main.gpa, "virtio-blk-pci,drive=drive{d},bus={s}.0", .{ i, pci_bus_type });
 

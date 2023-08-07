@@ -247,6 +247,7 @@ pub const DriveCache = enum {
 
 pub const Drive = struct {
     is_cdrom: bool,
+    is_removable: bool,
     bus: DriveBus,
     format: DriveFormat,
     cache: DriveCache,

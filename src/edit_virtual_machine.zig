@@ -60,6 +60,7 @@ var has_mouse_absolute_pointing = false;
 
 var drives_options = std.mem.zeroes([5]struct {
     is_cdrom: bool,
+    is_removable: bool,
     bus: u64,
     format: u64,
     cache: u64,
@@ -307,6 +308,7 @@ fn init_drives() !void {
         @memset(&drive_options.path, 0);
 
         drive_options.*.is_cdrom = drive.is_cdrom;
+        drive_options.*.is_removable = drive.is_removable;
         drive_options.*.bus = @intFromEnum(drive.bus);
         drive_options.*.format = @intFromEnum(drive.format);
         drive_options.*.cache = @intFromEnum(drive.cache);
@@ -741,6 +743,7 @@ fn drives_gui_frame() !void {
         try gui.label(@src(), "Drive {d}:", .{i}, .{ .id_extra = option_index });
 
         try utils.addBoolOption("CD-ROM", &drive_options.is_cdrom, &option_index);
+        try utils.addBoolOption("Removable", &drive_options.is_removable, &option_index);
         try utils.addComboOption("Bus", &[_][]const u8{ "USB", "IDE", "SATA", "VirtIO" }, &drive_options.bus, &option_index);
         try utils.addComboOption("Format", &[_][]const u8{ "Raw", "QCOW2", "VMDK", "VDI", "VHD" }, &drive_options.format, &option_index);
         try utils.addComboOption("Cache", &[_][]const u8{ "None", "Writeback", "Writethrough", "Directsync", "Unsafe" }, &drive_options.cache, &option_index);
@@ -751,6 +754,7 @@ fn drives_gui_frame() !void {
 
         // First sanity checks
         if (drive_options.bus == 0 or drive_options.bus == 3) drive_options.*.is_cdrom = false;
+        if (drive_options.bus != 0) drive_options.*.is_removable = false;
     }
 
     if (try gui.button(@src(), "Save", .{ .expand = .horizontal, .color_style = .accent })) {
@@ -759,6 +763,7 @@ fn drives_gui_frame() !void {
             var drive_options = drives_options[i];
 
             drive.*.is_cdrom = drive_options.is_cdrom;
+            drive.*.is_removable = drive_options.is_removable;
             drive.*.bus = @enumFromInt(drive_options.bus);
             drive.*.format = @enumFromInt(drive_options.format);
             drive.*.cache = @enumFromInt(drive_options.cache);

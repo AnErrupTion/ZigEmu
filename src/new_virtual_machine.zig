@@ -79,26 +79,24 @@ pub fn guiFrame() !void {
         try permanent_buffers.lists.append(actual_name);
         try permanent_buffers.lists.append(actual_boot_image);
 
-        // Dummy drive by default (empty path)
-        var boot_drive: structs.Drive = .{
+        // Dummy drive if no boot image is used
+        var boot_drive: structs.Drive = if (has_boot_image) .{
+            .is_cdrom = true,
+            .is_removable = false,
+            .bus = .sata,
+            .format = .raw,
+            .cache = .none,
+            .is_ssd = false,
+            .path = actual_boot_image.items,
+        } else .{
             .is_cdrom = false,
+            .is_removable = false,
             .bus = .ide,
             .format = .raw,
             .cache = .none,
             .is_ssd = false,
             .path = "",
         };
-
-        if (has_boot_image) {
-            boot_drive = .{
-                .is_cdrom = true,
-                .bus = .sata,
-                .format = .raw,
-                .cache = .none,
-                .is_ssd = false,
-                .path = actual_boot_image.items,
-            };
-        }
 
         try std.fs.cwd().makeDir(actual_name.items);
 
@@ -148,6 +146,7 @@ pub fn guiFrame() !void {
             },
             .drive0 = .{
                 .is_cdrom = false,
+                .is_removable = false,
                 .bus = .sata,
                 .format = .raw,
                 .cache = .none,
@@ -157,6 +156,7 @@ pub fn guiFrame() !void {
             .drive1 = boot_drive,
             .drive2 = .{
                 .is_cdrom = false,
+                .is_removable = false,
                 .bus = .ide,
                 .format = .raw,
                 .cache = .none,
@@ -165,6 +165,7 @@ pub fn guiFrame() !void {
             },
             .drive3 = .{
                 .is_cdrom = false,
+                .is_removable = false,
                 .bus = .ide,
                 .format = .raw,
                 .cache = .none,
@@ -173,6 +174,7 @@ pub fn guiFrame() !void {
             },
             .drive4 = .{
                 .is_cdrom = false,
+                .is_removable = false,
                 .bus = .ide,
                 .format = .raw,
                 .cache = .none,
