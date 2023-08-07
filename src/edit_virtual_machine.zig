@@ -45,6 +45,20 @@ var network_type: u64 = undefined;
 var interface: u64 = undefined;
 
 var display: u64 = undefined;
+var sdl_grab_modifier_keys = std.mem.zeroes([32]u8);
+var sdl_show_cursor: bool = undefined;
+var sdl_quit_on_window_close: bool = undefined;
+var gtk_full_screen: bool = undefined;
+var gtk_grab_on_hover: bool = undefined;
+var gtk_show_tabs: bool = undefined;
+var gtk_show_cursor: bool = undefined;
+var gtk_quit_on_window_close: bool = undefined;
+var gtk_zoom_to_fit: bool = undefined;
+var cocoa_show_cursor: bool = undefined;
+var cocoa_left_command_key: bool = undefined;
+var dbus_address = std.mem.zeroes([128]u8);
+var dbus_peer_to_peer: bool = undefined;
+
 var gpu: u64 = undefined;
 var has_vga_emulation: bool = undefined;
 var has_graphics_acceleration: bool = undefined;
@@ -282,7 +296,23 @@ fn init_network() !void {
 }
 
 fn init_graphics() !void {
+    @memset(&sdl_grab_modifier_keys, 0);
+    @memset(&dbus_address, 0);
+
     display = @intFromEnum(vm.graphics.display);
+    set_buffer(&sdl_grab_modifier_keys, vm.graphics.sdl_grab_modifier_keys);
+    sdl_show_cursor = vm.graphics.sdl_show_cursor;
+    sdl_quit_on_window_close = vm.graphics.sdl_quit_on_window_close;
+    gtk_full_screen = vm.graphics.gtk_full_screen;
+    gtk_grab_on_hover = vm.graphics.gtk_grab_on_hover;
+    gtk_show_tabs = vm.graphics.gtk_show_tabs;
+    gtk_show_cursor = vm.graphics.gtk_show_cursor;
+    gtk_quit_on_window_close = vm.graphics.gtk_quit_on_window_close;
+    gtk_zoom_to_fit = vm.graphics.gtk_zoom_to_fit;
+    cocoa_show_cursor = vm.graphics.cocoa_show_cursor;
+    cocoa_left_command_key = vm.graphics.cocoa_left_command_key;
+    set_buffer(&dbus_address, vm.graphics.dbus_address);
+    dbus_peer_to_peer = vm.graphics.dbus_peer_to_peer;
     gpu = @intFromEnum(vm.graphics.gpu);
     has_vga_emulation = vm.graphics.has_vga_emulation;
     has_graphics_acceleration = vm.graphics.has_graphics_acceleration;
@@ -631,6 +661,30 @@ fn graphics_gui_frame() !void {
     option_index = 0;
 
     try utils.addComboOption("Display", &.{ "None", "Auto", "SDL", "GTK", "SPICE", "Cocoa", "D-Bus" }, &display, &option_index);
+    switch (display) {
+        2 => {
+            try utils.addTextOption("Modifier keys for mouse grabbing", &sdl_grab_modifier_keys, &option_index);
+            try utils.addBoolOption("Force showing cursor", &sdl_show_cursor, &option_index);
+            try utils.addBoolOption("Quit on window close", &sdl_quit_on_window_close, &option_index);
+        },
+        3 => {
+            try utils.addBoolOption("Start in full screen", &gtk_full_screen, &option_index);
+            try utils.addBoolOption("Grab cursor on mouse hover", &gtk_grab_on_hover, &option_index);
+            try utils.addBoolOption("Show graphical interface tabs", &gtk_show_tabs, &option_index);
+            try utils.addBoolOption("Force showing cursor", &gtk_show_cursor, &option_index);
+            try utils.addBoolOption("Quit on window close", &gtk_quit_on_window_close, &option_index);
+            try utils.addBoolOption("Zoom video output to fit window size", &gtk_zoom_to_fit, &option_index);
+        },
+        5 => {
+            try utils.addBoolOption("Force showing cursor", &cocoa_show_cursor, &option_index);
+            try utils.addBoolOption("Disable forwarding left command key to host", &cocoa_left_command_key, &option_index);
+        },
+        6 => {
+            try utils.addTextOption("Address", &dbus_address, &option_index);
+            try utils.addBoolOption("Use peer-to-peer connection", &dbus_peer_to_peer, &option_index);
+        },
+        else => {},
+    }
     try utils.addComboOption("GPU", &.{ "None", "VGA", "Cirrus", "QXL", "VMware", "VirtIO" }, &gpu, &option_index);
     try utils.addBoolOption("VGA emulation", &has_vga_emulation, &option_index);
     try utils.addBoolOption("Graphics acceleration", &has_graphics_acceleration, &option_index);
@@ -642,6 +696,25 @@ fn graphics_gui_frame() !void {
     if (try gui.button(@src(), "Save", .{ .expand = .horizontal, .color_style = .accent })) {
         // Write updated data to struct
         vm.graphics.display = @enumFromInt(display);
+        vm.graphics.sdl_grab_modifier_keys = (utils.sanitizeOutputText(&sdl_grab_modifier_keys, false) catch {
+            try gui.dialog(@src(), .{ .title = "Error", .message = "Please enter valid modifier keys!" });
+            return;
+        }).items;
+        vm.graphics.sdl_show_cursor = sdl_show_cursor;
+        vm.graphics.sdl_quit_on_window_close = sdl_quit_on_window_close;
+        vm.graphics.gtk_full_screen = gtk_full_screen;
+        vm.graphics.gtk_grab_on_hover = gtk_grab_on_hover;
+        vm.graphics.gtk_show_tabs = gtk_show_tabs;
+        vm.graphics.gtk_show_cursor = gtk_show_cursor;
+        vm.graphics.gtk_quit_on_window_close = gtk_quit_on_window_close;
+        vm.graphics.gtk_zoom_to_fit = gtk_zoom_to_fit;
+        vm.graphics.cocoa_show_cursor = cocoa_show_cursor;
+        vm.graphics.cocoa_left_command_key = cocoa_left_command_key;
+        vm.graphics.dbus_address = (utils.sanitizeOutputText(&dbus_address, false) catch {
+            try gui.dialog(@src(), .{ .title = "Error", .message = "Please enter a valid D-Bus address!" });
+            return;
+        }).items;
+        vm.graphics.dbus_peer_to_peer = dbus_peer_to_peer;
         vm.graphics.gpu = @enumFromInt(gpu);
         vm.graphics.has_vga_emulation = has_vga_emulation;
         vm.graphics.has_graphics_acceleration = has_graphics_acceleration;

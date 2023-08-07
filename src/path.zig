@@ -1,6 +1,6 @@
 const std = @import("std");
 
-pub const LookupError = error{ OutOfMemory, NotFound };
+pub const LookupError = std.fmt.AllocPrintError || error{NotFound};
 
 pub fn lookup(allocator: std.mem.Allocator, paths: []const []const u8, names: []const []const u8) LookupError![]const u8 {
     for (paths) |path| {

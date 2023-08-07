@@ -150,18 +150,6 @@ pub fn getArguments(vm: structs.VirtualMachine, drives: []*structs.Drive) !std.A
         .Westmere_v2 => "Westmere-v2",
         .Westmere => "Westmere",
     };
-    const display_str = switch (vm.graphics.display) {
-        .none => "none",
-        .auto => switch (builtin.os.tag) {
-            .macos => "cocoa",
-            else => "sdl",
-        },
-        .sdl => "sdl",
-        .gtk => "gtk",
-        .spice => "spice-app",
-        .cocoa => "cocoa",
-        .dbus => "dbus",
-    };
 
     const qemu_path_separator = if (vm.qemu.override_qemu_path and !std.mem.endsWith(u8, vm.qemu.qemu_path, std.fs.path.sep_str)) std.fs.path.sep_str else "";
     const pci_bus_type = if (vm.basic.chipset == .q35) "pcie" else "pci";
@@ -171,7 +159,6 @@ pub fn getArguments(vm: structs.VirtualMachine, drives: []*structs.Drive) !std.A
     var cpu = if (vm.processor.features.len > 0) try std.fmt.allocPrint(main.gpa, "{s},{s}", .{ cpu_str, vm.processor.features }) else cpu_str;
     var ram = try std.fmt.allocPrint(main.gpa, "{d}M", .{vm.memory.ram});
     var smp = try std.fmt.allocPrint(main.gpa, "cores={d},threads={d}", .{ vm.processor.cores, vm.processor.threads });
-    var display = try std.fmt.allocPrint(main.gpa, "{s},gl={s}", .{ display_str, if (vm.graphics.has_graphics_acceleration) "on" else "off" });
     var ahci_bus: u64 = 0;
 
     try permanent_buffers.arrays.append(qemu_path);
@@ -181,7 +168,6 @@ pub fn getArguments(vm: structs.VirtualMachine, drives: []*structs.Drive) !std.A
     }
     try permanent_buffers.arrays.append(ram);
     try permanent_buffers.arrays.append(smp);
-    try permanent_buffers.arrays.append(display);
 
     try list.append(qemu_path);
     try list.append("-nodefaults");
@@ -213,7 +199,60 @@ pub fn getArguments(vm: structs.VirtualMachine, drives: []*structs.Drive) !std.A
     try list.append(smp);
 
     try list.append("-display");
-    try list.append(display);
+    switch (vm.graphics.display) {
+        .none => try list.append("none"),
+        .auto => switch (builtin.os.tag) {
+            .macos => {
+                var cocoa = try std.fmt.allocPrint(main.gpa, "cocoa,show-cursor={s},left-command-key={s}", .{ if (vm.graphics.cocoa_show_cursor) "on" else "off", if (vm.graphics.cocoa_left_command_key) "on" else "off" });
+
+                try permanent_buffers.arrays.append(cocoa);
+
+                try list.append(cocoa);
+            },
+            else => {
+                var sdl = try std.fmt.allocPrint(main.gpa, "sdl,gl={s},grab-mod={s},show-cursor={s},window-close={s}", .{ if (vm.graphics.has_graphics_acceleration) "on" else "off", vm.graphics.sdl_grab_modifier_keys, if (vm.graphics.sdl_show_cursor) "on" else "off", if (vm.graphics.sdl_quit_on_window_close) "on" else "off" });
+
+                try permanent_buffers.arrays.append(sdl);
+
+                try list.append(sdl);
+            },
+        },
+        .sdl => {
+            var sdl = try std.fmt.allocPrint(main.gpa, "sdl,gl={s},grab-mod={s},show-cursor={s},window-close={s}", .{ if (vm.graphics.has_graphics_acceleration) "on" else "off", vm.graphics.sdl_grab_modifier_keys, if (vm.graphics.sdl_show_cursor) "on" else "off", if (vm.graphics.sdl_quit_on_window_close) "on" else "off" });
+
+            try permanent_buffers.arrays.append(sdl);
+
+            try list.append(sdl);
+        },
+        .gtk => {
+            var gtk = try std.fmt.allocPrint(main.gpa, "gtk,gl={s},full-screen={s},grab-on-hover={s},show-tabs={s},show-cursor={s},window-close={s},zoom-to-fit={s}", .{ if (vm.graphics.has_graphics_acceleration) "on" else "off", if (vm.graphics.gtk_full_screen) "on" else "off", if (vm.graphics.gtk_grab_on_hover) "on" else "off", if (vm.graphics.gtk_show_tabs) "on" else "off", if (vm.graphics.gtk_show_cursor) "on" else "off", if (vm.graphics.gtk_quit_on_window_close) "on" else "off", if (vm.graphics.gtk_zoom_to_fit) "on" else "off" });
+
+            try permanent_buffers.arrays.append(gtk);
+
+            try list.append(gtk);
+        },
+        .spice => {
+            var spice = try std.fmt.allocPrint(main.gpa, "spice-app,gl={s}", .{if (vm.graphics.has_graphics_acceleration) "on" else "off"});
+
+            try permanent_buffers.arrays.append(spice);
+
+            try list.append(spice);
+        },
+        .cocoa => {
+            var cocoa = try std.fmt.allocPrint(main.gpa, "cocoa,show-cursor={s},left-command-key={s}", .{ if (vm.graphics.cocoa_show_cursor) "on" else "off", if (vm.graphics.cocoa_left_command_key) "on" else "off" });
+
+            try permanent_buffers.arrays.append(cocoa);
+
+            try list.append(cocoa);
+        },
+        .dbus => {
+            var dbus = try std.fmt.allocPrint(main.gpa, "dbus,gl={s},addr={s},p2p={s}", .{ if (vm.graphics.has_graphics_acceleration) "on" else "off", vm.graphics.dbus_address, if (vm.graphics.dbus_peer_to_peer) "yes" else "no" });
+
+            try permanent_buffers.arrays.append(dbus);
+
+            try list.append(dbus);
+        },
+    }
 
     if (vm.basic.usb_type != .none) {
         const usb_type_str = switch (vm.basic.usb_type) {
