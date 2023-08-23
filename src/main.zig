@@ -22,7 +22,7 @@ pub fn main() !void {
     defer permanent_buffers.deinit();
 
     std.fs.cwd().makeDir("VMs") catch {
-        std.debug.print("Warning: VMs directory already exists.", .{});
+        std.debug.print("Warning: VMs directory already exists.\n", .{});
     };
 
     virtual_machines_directory = std.fs.cwd().openDir("VMs", .{}) catch unreachable;

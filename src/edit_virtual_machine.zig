@@ -140,39 +140,17 @@ pub fn guiFrame() !void {
         var vbox = try gui.box(@src(), .vertical, .{});
         defer vbox.deinit();
 
-        if (try gui.button(@src(), "QEMU", .{ .expand = .horizontal })) {
-            setting = 0;
-        }
-        if (try gui.button(@src(), "Basic", .{ .expand = .horizontal })) {
-            setting = 1;
-        }
-        if (try gui.button(@src(), "Firmware", .{ .expand = .horizontal })) {
-            setting = 2;
-        }
-        if (try gui.button(@src(), "Memory", .{ .expand = .horizontal })) {
-            setting = 3;
-        }
-        if (try gui.button(@src(), "Processor", .{ .expand = .horizontal })) {
-            setting = 4;
-        }
-        if (try gui.button(@src(), "Network", .{ .expand = .horizontal })) {
-            setting = 5;
-        }
-        if (try gui.button(@src(), "Graphics", .{ .expand = .horizontal })) {
-            setting = 6;
-        }
-        if (try gui.button(@src(), "Audio", .{ .expand = .horizontal })) {
-            setting = 7;
-        }
-        if (try gui.button(@src(), "Peripherals", .{ .expand = .horizontal })) {
-            setting = 8;
-        }
-        if (try gui.button(@src(), "Drives", .{ .expand = .horizontal })) {
-            setting = 9;
-        }
-        if (try gui.button(@src(), "Command line", .{ .expand = .horizontal })) {
-            setting = 10;
-        }
+        if (try gui.button(@src(), "QEMU", .{ .expand = .horizontal })) setting = 0;
+        if (try gui.button(@src(), "Basic", .{ .expand = .horizontal })) setting = 1;
+        if (try gui.button(@src(), "Firmware", .{ .expand = .horizontal })) setting = 2;
+        if (try gui.button(@src(), "Memory", .{ .expand = .horizontal })) setting = 3;
+        if (try gui.button(@src(), "Processor", .{ .expand = .horizontal })) setting = 4;
+        if (try gui.button(@src(), "Network", .{ .expand = .horizontal })) setting = 5;
+        if (try gui.button(@src(), "Graphics", .{ .expand = .horizontal })) setting = 6;
+        if (try gui.button(@src(), "Audio", .{ .expand = .horizontal })) setting = 7;
+        if (try gui.button(@src(), "Peripherals", .{ .expand = .horizontal })) setting = 8;
+        if (try gui.button(@src(), "Drives", .{ .expand = .horizontal })) setting = 9;
+        if (try gui.button(@src(), "Command line", .{ .expand = .horizontal })) setting = 10;
         if (try gui.button(@src(), "Run", .{ .expand = .horizontal, .color_style = .accent })) {
             var qemu_arguments = try qemu.getArguments(vm, drives);
             defer qemu_arguments.deinit();
