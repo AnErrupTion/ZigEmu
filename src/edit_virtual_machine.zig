@@ -6,10 +6,13 @@ const structs = @import("structs.zig");
 const main = @import("main.zig");
 const utils = @import("utils.zig");
 const qemu = @import("qemu.zig");
+const Allocator = std.mem.Allocator;
 
 pub var vm: structs.VirtualMachine = undefined;
 pub var vm_index: u64 = undefined;
 pub var show = false;
+
+var allocator: Allocator = undefined;
 
 var format_buffer = std.mem.zeroes([1024]u8);
 
@@ -82,8 +85,10 @@ var drives_options = std.mem.zeroes([5]struct {
     path: [512]u8,
 });
 
-pub fn init() !void {
-    drives = try main.gpa.alloc(*structs.Drive, 5);
+pub fn init(frame_allocator: Allocator) !void {
+    allocator = frame_allocator;
+
+    drives = try allocator.alloc(*structs.Drive, 5);
     drives[0] = &vm.drive0;
     drives[1] = &vm.drive1;
     drives[2] = &vm.drive2;
@@ -114,7 +119,7 @@ pub fn deinit() !void {
 
     vm_directory.close();
 
-    main.gpa.free(drives);
+    allocator.free(drives);
 }
 
 pub fn guiFrame() !void {
@@ -152,10 +157,10 @@ pub fn guiFrame() !void {
         if (try gui.button(@src(), "Drives", .{ .expand = .horizontal })) setting = 9;
         if (try gui.button(@src(), "Command line", .{ .expand = .horizontal })) setting = 10;
         if (try gui.button(@src(), "Run", .{ .expand = .horizontal, .color_style = .accent })) {
-            var qemu_arguments = try qemu.getArguments(vm, drives);
+            var qemu_arguments = try qemu.getArguments(allocator, vm, drives);
             defer qemu_arguments.deinit();
 
-            var qemu_process = std.ChildProcess.init(qemu_arguments.items, main.gpa);
+            var qemu_process = std.ChildProcess.init(qemu_arguments.items, allocator);
 
             qemu_process.spawn() catch {
                 try gui.dialog(@src(), .{ .title = "Error", .message = "Unable to create a child process for QEMU." });
@@ -243,8 +248,8 @@ fn init_firmware() !void {
 }
 
 fn init_memory() !void {
-    var ram_format = try std.fmt.allocPrint(main.gpa, "{d}", .{vm.memory.ram});
-    defer main.gpa.free(ram_format);
+    var ram_format = try std.fmt.allocPrint(allocator, "{d}", .{vm.memory.ram});
+    defer allocator.free(ram_format);
 
     @memset(&ram, 0);
 
@@ -252,11 +257,11 @@ fn init_memory() !void {
 }
 
 fn init_processor() !void {
-    var cores_format = try std.fmt.allocPrint(main.gpa, "{d}", .{vm.processor.cores});
-    defer main.gpa.free(cores_format);
+    var cores_format = try std.fmt.allocPrint(allocator, "{d}", .{vm.processor.cores});
+    defer allocator.free(cores_format);
 
-    var threads_format = try std.fmt.allocPrint(main.gpa, "{d}", .{vm.processor.threads});
-    defer main.gpa.free(threads_format);
+    var threads_format = try std.fmt.allocPrint(allocator, "{d}", .{vm.processor.threads});
+    defer allocator.free(threads_format);
 
     @memset(&features, 0);
     @memset(&cores, 0);
@@ -334,7 +339,7 @@ fn qemu_gui_frame() !void {
     if (try gui.button(@src(), "Save", .{ .expand = .horizontal, .color_style = .accent })) {
         // Write updated data to struct
         vm.qemu.override_qemu_path = override_qemu_path;
-        vm.qemu.qemu_path = (utils.sanitizeOutputText(&qemu_path, false) catch {
+        vm.qemu.qemu_path = (utils.sanitizeOutputText(allocator, &qemu_path, false) catch {
             try gui.dialog(@src(), .{ .title = "Error", .message = "Please enter a valid path for QEMU!" });
             return;
         }).items;
@@ -358,7 +363,7 @@ fn basic_gui_frame() !void {
         const old_name = vm.basic.name;
 
         // Write updated data to struct
-        vm.basic.name = (utils.sanitizeOutputText(&name, true) catch {
+        vm.basic.name = (utils.sanitizeOutputText(allocator, &name, true) catch {
             try gui.dialog(@src(), .{ .title = "Error", .message = "Please enter a valid name!" });
             return;
         }).items;
@@ -418,7 +423,7 @@ fn firmware_gui_frame() !void {
     if (try gui.button(@src(), "Save", .{ .expand = .horizontal, .color_style = .accent })) {
         // Write updated data to struct
         vm.firmware.type = @enumFromInt(firmware_type);
-        vm.firmware.firmware_path = (utils.sanitizeOutputText(&firmware_path, false) catch {
+        vm.firmware.firmware_path = (utils.sanitizeOutputText(allocator, &firmware_path, false) catch {
             try gui.dialog(@src(), .{ .title = "Error", .message = "Please enter a valid firmware path!" });
             return;
         }).items;
@@ -441,7 +446,7 @@ fn memory_gui_frame() !void {
 
     if (try gui.button(@src(), "Save", .{ .expand = .horizontal, .color_style = .accent })) {
         // Write updated data to struct
-        vm.memory.ram = utils.sanitizeOutputNumber(&ram) catch {
+        vm.memory.ram = utils.sanitizeOutputNumber(allocator, &ram) catch {
             try gui.dialog(@src(), .{ .title = "Error", .message = "Please enter a valid amount of RAM!" });
             return;
         };
@@ -595,15 +600,15 @@ fn processor_gui_frame() !void {
     if (try gui.button(@src(), "Save", .{ .expand = .horizontal, .color_style = .accent })) {
         // Write updated data to struct
         vm.processor.cpu = @enumFromInt(cpu);
-        vm.processor.features = (utils.sanitizeOutputText(&features, false) catch {
+        vm.processor.features = (utils.sanitizeOutputText(allocator, &features, false) catch {
             try gui.dialog(@src(), .{ .title = "Error", .message = "Please enter a valid feature subset!" });
             return;
         }).items;
-        vm.processor.cores = utils.sanitizeOutputNumber(&cores) catch {
+        vm.processor.cores = utils.sanitizeOutputNumber(allocator, &cores) catch {
             try gui.dialog(@src(), .{ .title = "Error", .message = "Please enter a valid amount of cores!" });
             return;
         };
-        vm.processor.threads = utils.sanitizeOutputNumber(&threads) catch {
+        vm.processor.threads = utils.sanitizeOutputNumber(allocator, &threads) catch {
             try gui.dialog(@src(), .{ .title = "Error", .message = "Please enter a valid amount of threads!" });
             return;
         };
@@ -674,7 +679,7 @@ fn graphics_gui_frame() !void {
     if (try gui.button(@src(), "Save", .{ .expand = .horizontal, .color_style = .accent })) {
         // Write updated data to struct
         vm.graphics.display = @enumFromInt(display);
-        vm.graphics.sdl_grab_modifier_keys = (utils.sanitizeOutputText(&sdl_grab_modifier_keys, false) catch {
+        vm.graphics.sdl_grab_modifier_keys = (utils.sanitizeOutputText(allocator, &sdl_grab_modifier_keys, false) catch {
             try gui.dialog(@src(), .{ .title = "Error", .message = "Please enter valid modifier keys!" });
             return;
         }).items;
@@ -688,7 +693,7 @@ fn graphics_gui_frame() !void {
         vm.graphics.gtk_zoom_to_fit = gtk_zoom_to_fit;
         vm.graphics.cocoa_show_cursor = cocoa_show_cursor;
         vm.graphics.cocoa_left_command_key = cocoa_left_command_key;
-        vm.graphics.dbus_address = (utils.sanitizeOutputText(&dbus_address, false) catch {
+        vm.graphics.dbus_address = (utils.sanitizeOutputText(allocator, &dbus_address, false) catch {
             try gui.dialog(@src(), .{ .title = "Error", .message = "Please enter a valid D-Bus address!" });
             return;
         }).items;
@@ -819,7 +824,7 @@ fn drives_gui_frame() !void {
             drive.*.format = @enumFromInt(drive_options.format);
             drive.*.cache = @enumFromInt(drive_options.cache);
             drive.*.is_ssd = drive_options.is_ssd;
-            drive.*.path = (utils.sanitizeOutputText(&drive_options.path, false) catch {
+            drive.*.path = (utils.sanitizeOutputText(allocator, &drive_options.path, false) catch {
                 try gui.dialog(@src(), .{ .title = "Error", .message = "Please enter a valid drive path!" });
                 return;
             }).items;
@@ -840,10 +845,10 @@ fn drives_gui_frame() !void {
 }
 
 fn command_line_gui_frame() !void {
-    var qemu_arguments = try qemu.getArguments(vm, drives);
+    var qemu_arguments = try qemu.getArguments(allocator, vm, drives);
     defer qemu_arguments.deinit();
 
-    var arguments = std.ArrayList(u8).init(main.gpa);
+    var arguments = std.ArrayList(u8).init(allocator);
     defer arguments.deinit();
 
     for (qemu_arguments.items) |arg| {
@@ -853,7 +858,8 @@ fn command_line_gui_frame() !void {
         try arguments.appendSlice(" \\\n    ");
     }
 
-    try gui.textEntry(@src(), .{ .text = arguments.items }, .{ .expand = .both });
+    var entry = try gui.textEntry(@src(), .{ .text = arguments.items }, .{ .expand = .both });
+    defer entry.deinit();
 }
 
 fn save_changes() !void {

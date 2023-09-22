@@ -5,8 +5,11 @@ const structs = @import("structs.zig");
 const main = @import("main.zig");
 const permanent_buffers = @import("permanent_buffers.zig");
 const utils = @import("utils.zig");
+const Allocator = std.mem.Allocator;
 
 pub var show = false;
+
+var allocator: Allocator = undefined;
 
 var option_index: u64 = undefined;
 
@@ -19,7 +22,9 @@ var disk = std.mem.zeroes([8]u8);
 var has_boot_image: bool = undefined;
 var boot_image = std.mem.zeroes([1024]u8);
 
-pub fn init() void {
+pub fn init(frame_allocator: Allocator) void {
+    allocator = frame_allocator;
+
     @memset(&name, 0);
     @memset(&ram, 0);
     @memset(&cores, 0);
@@ -54,27 +59,27 @@ pub fn guiFrame() !void {
     if (has_boot_image) try utils.addTextOption("Boot image", &boot_image, &option_index);
 
     if (try gui.button(@src(), "Create", .{ .expand = .horizontal, .color_style = .accent })) {
-        var actual_name = utils.sanitizeOutputText(&name, true) catch {
+        var actual_name = utils.sanitizeOutputText(allocator, &name, true) catch {
             try gui.dialog(@src(), .{ .title = "Error", .message = "Please enter a valid name!" });
             return;
         };
-        var actual_ram = utils.sanitizeOutputNumber(&ram) catch {
+        var actual_ram = utils.sanitizeOutputNumber(allocator, &ram) catch {
             try gui.dialog(@src(), .{ .title = "Error", .message = "Please enter a valid amount of RAM!" });
             return;
         };
-        var actual_cores = utils.sanitizeOutputNumber(&cores) catch {
+        var actual_cores = utils.sanitizeOutputNumber(allocator, &cores) catch {
             try gui.dialog(@src(), .{ .title = "Error", .message = "Please enter a valid amount of cores!" });
             return;
         };
-        var actual_threads = utils.sanitizeOutputNumber(&threads) catch {
+        var actual_threads = utils.sanitizeOutputNumber(allocator, &threads) catch {
             try gui.dialog(@src(), .{ .title = "Error", .message = "Please enter a valid amount of threads!" });
             return;
         };
-        var actual_disk = utils.sanitizeOutputNumber(&disk) catch {
+        var actual_disk = utils.sanitizeOutputNumber(allocator, &disk) catch {
             try gui.dialog(@src(), .{ .title = "Error", .message = "Please enter a valid disk size!" });
             return;
         };
-        var actual_boot_image = utils.sanitizeOutputText(&boot_image, false) catch {
+        var actual_boot_image = utils.sanitizeOutputText(allocator, &boot_image, false) catch {
             try gui.dialog(@src(), .{ .title = "Error", .message = "Please enter a valid boot image path!" });
             return;
         };
@@ -116,8 +121,8 @@ pub fn guiFrame() !void {
 
         // Create VM disk
         {
-            var disk_size = try std.fmt.allocPrint(main.gpa, "{d}G", .{actual_disk});
-            defer main.gpa.free(disk_size);
+            var disk_size = try std.fmt.allocPrint(allocator, "{d}G", .{actual_disk});
+            defer allocator.free(disk_size);
 
             const qemu_img_arguments = [_][]const u8{
                 "qemu-img",
@@ -129,7 +134,7 @@ pub fn guiFrame() !void {
                 disk_size,
             };
 
-            _ = std.ChildProcess.exec(.{ .argv = &qemu_img_arguments, .allocator = main.gpa }) catch {
+            _ = std.ChildProcess.exec(.{ .argv = &qemu_img_arguments, .allocator = allocator }) catch {
                 try gui.dialog(@src(), .{ .title = "Error", .message = "Unable to create a child process for the QEMU image creation." });
                 return;
             };

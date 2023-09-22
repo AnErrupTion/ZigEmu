@@ -1,13 +1,13 @@
 const std = @import("std");
 const builtin = @import("builtin");
 const structs = @import("structs.zig");
-const main = @import("main.zig");
 const utils = @import("utils.zig");
 const permanent_buffers = @import("permanent_buffers.zig");
 const path = @import("path.zig");
+const Allocator = std.mem.Allocator;
 
-pub fn getArguments(vm: structs.VirtualMachine, drives: []*structs.Drive) !std.ArrayList([]const u8) {
-    var list = std.ArrayList([]const u8).init(main.gpa);
+pub fn getArguments(allocator: Allocator, vm: structs.VirtualMachine, drives: []*structs.Drive) !std.ArrayList([]const u8) {
+    var list = std.ArrayList([]const u8).init(allocator);
 
     const architecture_str = switch (vm.basic.architecture) {
         .amd64 => "x86_64",
@@ -154,11 +154,11 @@ pub fn getArguments(vm: structs.VirtualMachine, drives: []*structs.Drive) !std.A
     const qemu_path_separator = if (vm.qemu.override_qemu_path and !std.mem.endsWith(u8, vm.qemu.qemu_path, std.fs.path.sep_str)) std.fs.path.sep_str else "";
     const pci_bus_type = if (vm.basic.chipset == .q35) "pcie" else "pci";
 
-    var qemu_path = try std.fmt.allocPrint(main.gpa, "{s}{s}qemu-system-{s}", .{ vm.qemu.qemu_path, qemu_path_separator, architecture_str });
-    var name = try std.fmt.allocPrint(main.gpa, "{s},process={s}", .{ vm.basic.name, vm.basic.name });
-    var cpu = if (vm.processor.features.len > 0) try std.fmt.allocPrint(main.gpa, "{s},{s}", .{ cpu_str, vm.processor.features }) else cpu_str;
-    var ram = try std.fmt.allocPrint(main.gpa, "{d}M", .{vm.memory.ram});
-    var smp = try std.fmt.allocPrint(main.gpa, "cores={d},threads={d}", .{ vm.processor.cores, vm.processor.threads });
+    var qemu_path = try std.fmt.allocPrint(allocator, "{s}{s}qemu-system-{s}", .{ vm.qemu.qemu_path, qemu_path_separator, architecture_str });
+    var name = try std.fmt.allocPrint(allocator, "{s},process={s}", .{ vm.basic.name, vm.basic.name });
+    var cpu = if (vm.processor.features.len > 0) try std.fmt.allocPrint(allocator, "{s},{s}", .{ cpu_str, vm.processor.features }) else cpu_str;
+    var ram = try std.fmt.allocPrint(allocator, "{d}M", .{vm.memory.ram});
+    var smp = try std.fmt.allocPrint(allocator, "cores={d},threads={d}", .{ vm.processor.cores, vm.processor.threads });
     var ahci_bus: u64 = 0;
 
     try permanent_buffers.arrays.append(qemu_path);
@@ -203,14 +203,14 @@ pub fn getArguments(vm: structs.VirtualMachine, drives: []*structs.Drive) !std.A
         .none => try list.append("none"),
         .auto => switch (builtin.os.tag) {
             .macos => {
-                var cocoa = try std.fmt.allocPrint(main.gpa, "cocoa,show-cursor={s},left-command-key={s}", .{ if (vm.graphics.cocoa_show_cursor) "on" else "off", if (vm.graphics.cocoa_left_command_key) "on" else "off" });
+                var cocoa = try std.fmt.allocPrint(allocator, "cocoa,show-cursor={s},left-command-key={s}", .{ if (vm.graphics.cocoa_show_cursor) "on" else "off", if (vm.graphics.cocoa_left_command_key) "on" else "off" });
 
                 try permanent_buffers.arrays.append(cocoa);
 
                 try list.append(cocoa);
             },
             else => {
-                var sdl = try std.fmt.allocPrint(main.gpa, "sdl,gl={s},grab-mod={s},show-cursor={s},window-close={s}", .{ if (vm.graphics.has_graphics_acceleration) "on" else "off", vm.graphics.sdl_grab_modifier_keys, if (vm.graphics.sdl_show_cursor) "on" else "off", if (vm.graphics.sdl_quit_on_window_close) "on" else "off" });
+                var sdl = try std.fmt.allocPrint(allocator, "sdl,gl={s},grab-mod={s},show-cursor={s},window-close={s}", .{ if (vm.graphics.has_graphics_acceleration) "on" else "off", vm.graphics.sdl_grab_modifier_keys, if (vm.graphics.sdl_show_cursor) "on" else "off", if (vm.graphics.sdl_quit_on_window_close) "on" else "off" });
 
                 try permanent_buffers.arrays.append(sdl);
 
@@ -218,35 +218,35 @@ pub fn getArguments(vm: structs.VirtualMachine, drives: []*structs.Drive) !std.A
             },
         },
         .sdl => {
-            var sdl = try std.fmt.allocPrint(main.gpa, "sdl,gl={s},grab-mod={s},show-cursor={s},window-close={s}", .{ if (vm.graphics.has_graphics_acceleration) "on" else "off", vm.graphics.sdl_grab_modifier_keys, if (vm.graphics.sdl_show_cursor) "on" else "off", if (vm.graphics.sdl_quit_on_window_close) "on" else "off" });
+            var sdl = try std.fmt.allocPrint(allocator, "sdl,gl={s},grab-mod={s},show-cursor={s},window-close={s}", .{ if (vm.graphics.has_graphics_acceleration) "on" else "off", vm.graphics.sdl_grab_modifier_keys, if (vm.graphics.sdl_show_cursor) "on" else "off", if (vm.graphics.sdl_quit_on_window_close) "on" else "off" });
 
             try permanent_buffers.arrays.append(sdl);
 
             try list.append(sdl);
         },
         .gtk => {
-            var gtk = try std.fmt.allocPrint(main.gpa, "gtk,gl={s},full-screen={s},grab-on-hover={s},show-tabs={s},show-cursor={s},window-close={s},zoom-to-fit={s}", .{ if (vm.graphics.has_graphics_acceleration) "on" else "off", if (vm.graphics.gtk_full_screen) "on" else "off", if (vm.graphics.gtk_grab_on_hover) "on" else "off", if (vm.graphics.gtk_show_tabs) "on" else "off", if (vm.graphics.gtk_show_cursor) "on" else "off", if (vm.graphics.gtk_quit_on_window_close) "on" else "off", if (vm.graphics.gtk_zoom_to_fit) "on" else "off" });
+            var gtk = try std.fmt.allocPrint(allocator, "gtk,gl={s},full-screen={s},grab-on-hover={s},show-tabs={s},show-cursor={s},window-close={s},zoom-to-fit={s}", .{ if (vm.graphics.has_graphics_acceleration) "on" else "off", if (vm.graphics.gtk_full_screen) "on" else "off", if (vm.graphics.gtk_grab_on_hover) "on" else "off", if (vm.graphics.gtk_show_tabs) "on" else "off", if (vm.graphics.gtk_show_cursor) "on" else "off", if (vm.graphics.gtk_quit_on_window_close) "on" else "off", if (vm.graphics.gtk_zoom_to_fit) "on" else "off" });
 
             try permanent_buffers.arrays.append(gtk);
 
             try list.append(gtk);
         },
         .spice => {
-            var spice = try std.fmt.allocPrint(main.gpa, "spice-app,gl={s}", .{if (vm.graphics.has_graphics_acceleration) "on" else "off"});
+            var spice = try std.fmt.allocPrint(allocator, "spice-app,gl={s}", .{if (vm.graphics.has_graphics_acceleration) "on" else "off"});
 
             try permanent_buffers.arrays.append(spice);
 
             try list.append(spice);
         },
         .cocoa => {
-            var cocoa = try std.fmt.allocPrint(main.gpa, "cocoa,show-cursor={s},left-command-key={s}", .{ if (vm.graphics.cocoa_show_cursor) "on" else "off", if (vm.graphics.cocoa_left_command_key) "on" else "off" });
+            var cocoa = try std.fmt.allocPrint(allocator, "cocoa,show-cursor={s},left-command-key={s}", .{ if (vm.graphics.cocoa_show_cursor) "on" else "off", if (vm.graphics.cocoa_left_command_key) "on" else "off" });
 
             try permanent_buffers.arrays.append(cocoa);
 
             try list.append(cocoa);
         },
         .dbus => {
-            var dbus = try std.fmt.allocPrint(main.gpa, "dbus,gl={s},addr={s},p2p={s}", .{ if (vm.graphics.has_graphics_acceleration) "on" else "off", vm.graphics.dbus_address, if (vm.graphics.dbus_peer_to_peer) "yes" else "no" });
+            var dbus = try std.fmt.allocPrint(allocator, "dbus,gl={s},addr={s},p2p={s}", .{ if (vm.graphics.has_graphics_acceleration) "on" else "off", vm.graphics.dbus_address, if (vm.graphics.dbus_peer_to_peer) "yes" else "no" });
 
             try permanent_buffers.arrays.append(dbus);
 
@@ -262,7 +262,7 @@ pub fn getArguments(vm: structs.VirtualMachine, drives: []*structs.Drive) !std.A
             .xhci => "qemu-xhci",
             else => unreachable,
         };
-        var usb = try std.fmt.allocPrint(main.gpa, "{s},bus={s}.0,id=usb", .{ usb_type_str, pci_bus_type });
+        var usb = try std.fmt.allocPrint(allocator, "{s},bus={s}.0,id=usb", .{ usb_type_str, pci_bus_type });
 
         try permanent_buffers.arrays.append(usb);
 
@@ -271,7 +271,7 @@ pub fn getArguments(vm: structs.VirtualMachine, drives: []*structs.Drive) !std.A
     }
 
     if (vm.basic.has_ahci) {
-        var ahci = try std.fmt.allocPrint(main.gpa, "ahci,bus={s}.0,id=ahci", .{pci_bus_type});
+        var ahci = try std.fmt.allocPrint(allocator, "ahci,bus={s}.0,id=ahci", .{pci_bus_type});
 
         try permanent_buffers.arrays.append(ahci);
 
@@ -290,7 +290,7 @@ pub fn getArguments(vm: structs.VirtualMachine, drives: []*structs.Drive) !std.A
 
             const names = &[_][]const u8{"bios.bin"};
 
-            var firmware = try path.lookup(main.gpa, paths, names);
+            var firmware = try path.lookup(allocator, paths, names);
 
             try permanent_buffers.arrays.append(firmware);
 
@@ -313,14 +313,14 @@ pub fn getArguments(vm: structs.VirtualMachine, drives: []*structs.Drive) !std.A
                 .amd64 => &[_][]const u8{ "edk2-i386-vars.fd", "OVMF_VARS.fd" },
             };
 
-            const code = try path.lookup(main.gpa, paths, codes);
-            const vars = try path.lookup(main.gpa, paths, variables);
+            const code = try path.lookup(allocator, paths, codes);
+            const vars = try path.lookup(allocator, paths, variables);
 
             try permanent_buffers.arrays.append(code);
             try permanent_buffers.arrays.append(vars);
 
-            var code_drive = try std.fmt.allocPrint(main.gpa, "if=pflash,readonly=on,file={s}", .{code});
-            var vars_drive = try std.fmt.allocPrint(main.gpa, "if=pflash,readonly=on,file={s}", .{vars});
+            var code_drive = try std.fmt.allocPrint(allocator, "if=pflash,readonly=on,file={s}", .{code});
+            var vars_drive = try std.fmt.allocPrint(allocator, "if=pflash,readonly=on,file={s}", .{vars});
 
             try permanent_buffers.arrays.append(code_drive);
             try permanent_buffers.arrays.append(vars_drive);
@@ -336,7 +336,7 @@ pub fn getArguments(vm: structs.VirtualMachine, drives: []*structs.Drive) !std.A
             try list.append(vm.firmware.firmware_path);
         },
         .custom_pflash => {
-            var firmware = try std.fmt.allocPrint(main.gpa, "if=pflash,readonly=on,file={s}", .{vm.firmware.firmware_path});
+            var firmware = try std.fmt.allocPrint(allocator, "if=pflash,readonly=on,file={s}", .{vm.firmware.firmware_path});
 
             try permanent_buffers.arrays.append(firmware);
 
@@ -357,32 +357,32 @@ pub fn getArguments(vm: structs.VirtualMachine, drives: []*structs.Drive) !std.A
 
         switch (vm.network.interface) {
             .rtl8139 => {
-                var network = try std.fmt.allocPrint(main.gpa, "rtl8139,bus={s}.0,netdev=nettype", .{pci_bus_type});
+                var network = try std.fmt.allocPrint(allocator, "rtl8139,bus={s}.0,netdev=nettype", .{pci_bus_type});
 
                 try permanent_buffers.arrays.append(network);
                 try list.append(network);
             },
             .e1000 => {
-                var network = try std.fmt.allocPrint(main.gpa, "e1000,bus={s}.0,netdev=nettype", .{pci_bus_type});
+                var network = try std.fmt.allocPrint(allocator, "e1000,bus={s}.0,netdev=nettype", .{pci_bus_type});
 
                 try permanent_buffers.arrays.append(network);
                 try list.append(network);
             },
             .e1000e => {
-                var network = try std.fmt.allocPrint(main.gpa, "e1000e,bus={s}.0,netdev=nettype", .{pci_bus_type});
+                var network = try std.fmt.allocPrint(allocator, "e1000e,bus={s}.0,netdev=nettype", .{pci_bus_type});
 
                 try permanent_buffers.arrays.append(network);
                 try list.append(network);
             },
             .vmware => {
-                var network = try std.fmt.allocPrint(main.gpa, "vmxnet3,bus={s}.0,netdev=nettype", .{pci_bus_type});
+                var network = try std.fmt.allocPrint(allocator, "vmxnet3,bus={s}.0,netdev=nettype", .{pci_bus_type});
 
                 try permanent_buffers.arrays.append(network);
                 try list.append(network);
             },
             .usb => try list.append("usb-net,bus=usb.0,netdev=nettype"),
             .virtio => {
-                var network = try std.fmt.allocPrint(main.gpa, "virtio-net-pci,bus={s}.0,netdev=nettype", .{pci_bus_type});
+                var network = try std.fmt.allocPrint(allocator, "virtio-net-pci,bus={s}.0,netdev=nettype", .{pci_bus_type});
 
                 try permanent_buffers.arrays.append(network);
                 try list.append(network);
@@ -397,7 +397,7 @@ pub fn getArguments(vm: structs.VirtualMachine, drives: []*structs.Drive) !std.A
             .qxl => {
                 if (vm.graphics.has_graphics_acceleration) unreachable;
 
-                var qxl = try std.fmt.allocPrint(main.gpa, "{s},bus={s}.0", .{ if (vm.graphics.has_vga_emulation) "qxl-vga" else "qxl", pci_bus_type });
+                var qxl = try std.fmt.allocPrint(allocator, "{s},bus={s}.0", .{ if (vm.graphics.has_vga_emulation) "qxl-vga" else "qxl", pci_bus_type });
 
                 try permanent_buffers.arrays.append(qxl);
 
@@ -407,7 +407,7 @@ pub fn getArguments(vm: structs.VirtualMachine, drives: []*structs.Drive) !std.A
                 if (vm.graphics.has_graphics_acceleration) unreachable;
                 if (!vm.graphics.has_vga_emulation) unreachable;
 
-                var vga = try std.fmt.allocPrint(main.gpa, "VGA,bus={s}.0", .{pci_bus_type});
+                var vga = try std.fmt.allocPrint(allocator, "VGA,bus={s}.0", .{pci_bus_type});
 
                 try permanent_buffers.arrays.append(vga);
 
@@ -417,7 +417,7 @@ pub fn getArguments(vm: structs.VirtualMachine, drives: []*structs.Drive) !std.A
                 if (vm.graphics.has_graphics_acceleration) unreachable;
                 if (!vm.graphics.has_vga_emulation) unreachable;
 
-                var cirrus = try std.fmt.allocPrint(main.gpa, "cirrus-vga,bus={s}.0", .{pci_bus_type});
+                var cirrus = try std.fmt.allocPrint(allocator, "cirrus-vga,bus={s}.0", .{pci_bus_type});
 
                 try permanent_buffers.arrays.append(cirrus);
 
@@ -427,7 +427,7 @@ pub fn getArguments(vm: structs.VirtualMachine, drives: []*structs.Drive) !std.A
                 if (vm.graphics.has_graphics_acceleration) unreachable;
                 if (!vm.graphics.has_vga_emulation) unreachable;
 
-                var vmware = try std.fmt.allocPrint(main.gpa, "vmware-svga,bus={s}.0", .{pci_bus_type});
+                var vmware = try std.fmt.allocPrint(allocator, "vmware-svga,bus={s}.0", .{pci_bus_type});
 
                 try permanent_buffers.arrays.append(vmware);
 
@@ -435,7 +435,7 @@ pub fn getArguments(vm: structs.VirtualMachine, drives: []*structs.Drive) !std.A
             },
             .virtio => {
                 var virtio_gpu_type = if (vm.graphics.has_vga_emulation and vm.graphics.has_graphics_acceleration) "vga-gl" else if (vm.graphics.has_vga_emulation and !vm.graphics.has_graphics_acceleration) "vga" else if (!vm.graphics.has_vga_emulation and vm.graphics.has_graphics_acceleration) "gpu-gl" else "gpu";
-                var virtio = try std.fmt.allocPrint(main.gpa, "virtio-{s},bus={s}.0", .{ virtio_gpu_type, pci_bus_type });
+                var virtio = try std.fmt.allocPrint(allocator, "virtio-{s},bus={s}.0", .{ virtio_gpu_type, pci_bus_type });
 
                 try permanent_buffers.arrays.append(virtio);
 
@@ -482,7 +482,7 @@ pub fn getArguments(vm: structs.VirtualMachine, drives: []*structs.Drive) !std.A
             try list.append("AC97,audiodev=hostdev");
         },
         .ich6 => {
-            var sound = try std.fmt.allocPrint(main.gpa, "intel-hda,bus={s}.0,id=hda", .{pci_bus_type});
+            var sound = try std.fmt.allocPrint(allocator, "intel-hda,bus={s}.0,id=hda", .{pci_bus_type});
 
             try permanent_buffers.arrays.append(sound);
 
@@ -501,7 +501,7 @@ pub fn getArguments(vm: structs.VirtualMachine, drives: []*structs.Drive) !std.A
             }
         },
         .ich9 => {
-            var sound = try std.fmt.allocPrint(main.gpa, "ich9-intel-hda,bus={s}.0,id=hda", .{pci_bus_type});
+            var sound = try std.fmt.allocPrint(allocator, "ich9-intel-hda,bus={s}.0,id=hda", .{pci_bus_type});
 
             try permanent_buffers.arrays.append(sound);
 
@@ -538,7 +538,7 @@ pub fn getArguments(vm: structs.VirtualMachine, drives: []*structs.Drive) !std.A
                 try list.append("usb-kbd,bus=usb.0");
             },
             .virtio => {
-                var keyboard = try std.fmt.allocPrint(main.gpa, "virtio-keyboard-pci,bus={s}.0", .{pci_bus_type});
+                var keyboard = try std.fmt.allocPrint(allocator, "virtio-keyboard-pci,bus={s}.0", .{pci_bus_type});
 
                 try permanent_buffers.arrays.append(keyboard);
 
@@ -556,10 +556,10 @@ pub fn getArguments(vm: structs.VirtualMachine, drives: []*structs.Drive) !std.A
             .usb => {
                 if (vm.basic.usb_type == .none) unreachable;
 
-                mouse = try std.fmt.allocPrint(main.gpa, "{s},bus=usb.0", .{if (vm.peripherals.has_mouse_absolute_pointing) "usb-tablet" else "usb-mouse"});
+                mouse = try std.fmt.allocPrint(allocator, "{s},bus=usb.0", .{if (vm.peripherals.has_mouse_absolute_pointing) "usb-tablet" else "usb-mouse"});
             },
             .virtio => {
-                mouse = try std.fmt.allocPrint(main.gpa, "{s},bus={s}.0", .{ if (vm.peripherals.has_mouse_absolute_pointing) "virtio-tablet-pci" else "virtio-mouse-pci", pci_bus_type });
+                mouse = try std.fmt.allocPrint(allocator, "{s},bus={s}.0", .{ if (vm.peripherals.has_mouse_absolute_pointing) "virtio-tablet-pci" else "virtio-mouse-pci", pci_bus_type });
             },
             else => unreachable,
         }
@@ -589,7 +589,7 @@ pub fn getArguments(vm: structs.VirtualMachine, drives: []*structs.Drive) !std.A
             .directsync => "directsync",
             .unsafe => "unsafe",
         };
-        var disk = try std.fmt.allocPrint(main.gpa, "if=none,file={s},format={s},cache={s},discard={s},id=drive{d}", .{ drive.path, drive_format_str, drive_cache_str, if (drive.is_ssd) "unmap" else "ignore", i });
+        var disk = try std.fmt.allocPrint(allocator, "if=none,file={s},format={s},cache={s},discard={s},id=drive{d}", .{ drive.path, drive_format_str, drive_cache_str, if (drive.is_ssd) "unmap" else "ignore", i });
 
         try permanent_buffers.arrays.append(disk);
 
@@ -600,7 +600,7 @@ pub fn getArguments(vm: structs.VirtualMachine, drives: []*structs.Drive) !std.A
             .ide => {
                 if (drive.is_removable) unreachable;
 
-                var bus = if (drive.is_cdrom) try std.fmt.allocPrint(main.gpa, "ide-cd,drive=drive{d}", .{i}) else try std.fmt.allocPrint(main.gpa, "ide-hd,drive=drive{d}", .{i});
+                var bus = if (drive.is_cdrom) try std.fmt.allocPrint(allocator, "ide-cd,drive=drive{d}", .{i}) else try std.fmt.allocPrint(allocator, "ide-hd,drive=drive{d}", .{i});
 
                 try permanent_buffers.arrays.append(bus);
 
@@ -610,7 +610,7 @@ pub fn getArguments(vm: structs.VirtualMachine, drives: []*structs.Drive) !std.A
             .sata => {
                 if (drive.is_removable) unreachable;
 
-                var bus = if (drive.is_cdrom) try std.fmt.allocPrint(main.gpa, "ide-cd,drive=drive{d},bus=ahci.{d}", .{ i, ahci_bus }) else try std.fmt.allocPrint(main.gpa, "ide-hd,drive=drive{d},bus=ahci.{d}", .{ i, ahci_bus });
+                var bus = if (drive.is_cdrom) try std.fmt.allocPrint(allocator, "ide-cd,drive=drive{d},bus=ahci.{d}", .{ i, ahci_bus }) else try std.fmt.allocPrint(allocator, "ide-hd,drive=drive{d},bus=ahci.{d}", .{ i, ahci_bus });
 
                 ahci_bus += 1;
 
@@ -623,7 +623,7 @@ pub fn getArguments(vm: structs.VirtualMachine, drives: []*structs.Drive) !std.A
                 if (vm.basic.usb_type == .none) unreachable;
                 if (drive.is_cdrom) unreachable;
 
-                var bus = try std.fmt.allocPrint(main.gpa, "usb-storage,drive=drive{d},bus=usb.0,removable={d}", .{ i, if (drive.is_removable) "true" else "false" });
+                var bus = try std.fmt.allocPrint(allocator, "usb-storage,drive=drive{d},bus=usb.0,removable={d}", .{ i, if (drive.is_removable) "true" else "false" });
 
                 try permanent_buffers.arrays.append(bus);
 
@@ -634,7 +634,7 @@ pub fn getArguments(vm: structs.VirtualMachine, drives: []*structs.Drive) !std.A
                 if (drive.is_cdrom) unreachable;
                 if (drive.is_removable) unreachable;
 
-                var bus = try std.fmt.allocPrint(main.gpa, "nvme,drive=drive{d},bus={s}.0,serial=deadbeef", .{ i, pci_bus_type });
+                var bus = try std.fmt.allocPrint(allocator, "nvme,drive=drive{d},bus={s}.0,serial=deadbeef", .{ i, pci_bus_type });
 
                 try permanent_buffers.arrays.append(bus);
 
@@ -645,7 +645,7 @@ pub fn getArguments(vm: structs.VirtualMachine, drives: []*structs.Drive) !std.A
                 if (drive.is_cdrom) unreachable;
                 if (drive.is_removable) unreachable;
 
-                var bus = try std.fmt.allocPrint(main.gpa, "virtio-blk-pci,drive=drive{d},bus={s}.0", .{ i, pci_bus_type });
+                var bus = try std.fmt.allocPrint(allocator, "virtio-blk-pci,drive=drive{d},bus={s}.0", .{ i, pci_bus_type });
 
                 try permanent_buffers.arrays.append(bus);
 
