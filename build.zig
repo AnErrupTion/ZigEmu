@@ -18,11 +18,7 @@ pub fn build(b: *std.build.Builder) !void {
     exe.addModule("gui", dvui.module("dvui"));
     exe.addModule("SDLBackend", dvui.module("SDLBackend"));
 
-    const freetype = dvui.builder.dependency("freetype", .{ .target = target, .optimize = optimize });
-    exe.linkLibrary(freetype.artifact("freetype"));
-
-    exe.linkSystemLibrary("SDL2");
-    exe.linkLibC();
+    link_deps(exe, dvui.builder);
 
     const compile_step = b.step("ZigEmu", "Compile ZigEmu");
     compile_step.dependOn(&b.addInstallArtifact(exe, .{}).step);
@@ -33,4 +29,31 @@ pub fn build(b: *std.build.Builder) !void {
 
     const run_step = b.step("run", "Run ZigEmu");
     run_step.dependOn(&run_cmd.step);
+}
+
+fn link_deps(exe: *std.Build.Step.Compile, b: *std.Build) void {
+    const freetype_dep = b.dependency("freetype", .{
+        .target = exe.target,
+        .optimize = exe.optimize,
+    });
+    exe.linkLibrary(freetype_dep.artifact("freetype"));
+    exe.linkLibC();
+
+    if (exe.target.isWindows()) {
+        const sdl_dep = b.dependency("sdl", .{
+            .target = exe.target,
+            .optimize = exe.optimize,
+        });
+        exe.linkLibrary(sdl_dep.artifact("SDL2"));
+
+        exe.linkSystemLibrary("setupapi");
+        exe.linkSystemLibrary("winmm");
+        exe.linkSystemLibrary("gdi32");
+        exe.linkSystemLibrary("imm32");
+        exe.linkSystemLibrary("version");
+        exe.linkSystemLibrary("oleaut32");
+        exe.linkSystemLibrary("ole32");
+    } else {
+        exe.linkSystemLibrary("SDL2");
+    }
 }
