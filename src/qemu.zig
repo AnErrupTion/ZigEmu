@@ -657,3 +657,7 @@ pub fn getArguments(allocator: Allocator, vm: structs.VirtualMachine, drives: []
 
     return list;
 }
+
+inline fn detect_platform_exe_path() ![]const u8 {
+    return "fuck";
+}

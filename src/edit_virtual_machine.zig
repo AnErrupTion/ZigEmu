@@ -85,6 +85,10 @@ var drives_options = std.mem.zeroes([5]struct {
     path: [512]u8,
 });
 
+var deleting_vm = false;
+var deleting_vm_index: ?u64 = null;
+var deletion_confirmation = false;
+
 pub fn init(frame_allocator: Allocator) !void {
     allocator = frame_allocator;
 
@@ -167,15 +171,57 @@ pub fn guiFrame() !void {
                 return;
             };
         }
+
         if (try gui.button(@src(), "Delete", .{ .expand = .horizontal, .color_style = .err })) {
-            // Delete VM directory
-            try main.virtual_machines_directory.deleteTree(vm.basic.name);
+            if (deleting_vm) {
+                return;
+            }
 
-            // Remove VM from array list
-            _ = main.virtual_machines.swapRemove(vm_index);
+            deleting_vm = true;
 
-            // Close window
-            show = false;
+            // TODO(SeedyROM): Put me back in when I'm not broken
+            // // Delete VM directory
+            // try main.virtual_machines_directory.deleteTree(vm.basic.name);
+
+            // // Remove VM from array list
+            // _ = main.virtual_machines.swapRemove(vm_index);
+
+            // // Close window
+            // show = false;
+        }
+
+        if (deleting_vm) {
+            // Render a modal when deleting a VM
+            var confirmation_window = try gui.floatingWindow(@src(), .{ .modal = true, .open_flag = &deleting_vm }, .{
+                .color_style = .window,
+                .min_size_content = .{ .w = 250, .h = 100 },
+            });
+            defer confirmation_window.deinit();
+
+            var confirmation_vbox = try gui.box(@src(), .vertical, .{ .expand = .both, .padding = .{ .x = 20, .y = 20, .w = 20, .h = 20 } });
+            defer confirmation_vbox.deinit();
+
+            // Render some text to confirm deletion
+            try gui.label(@src(), "Are you sure you want to delete this virtual machine?", .{}, .{
+                .expand = .horizontal,
+                .padding = .{ .x = 0, .y = 10, .w = 0, .h = 10 },
+            });
+
+            // A horizontal box to render buttons
+            var confirmation_hbox = try gui.box(@src(), .horizontal, .{ .expand = .horizontal });
+            defer confirmation_hbox.deinit();
+
+            // Cancel button
+            if (try gui.button(@src(), "Cancel", .{ .expand = .horizontal, .color_style = .accent })) {
+                deleting_vm = false;
+                std.debug.print("Cancelled deletion of VM\n", .{});
+            }
+
+            // Confirmation button
+            if (try gui.button(@src(), "Confirm", .{ .expand = .horizontal, .color_style = .err })) {
+                std.debug.print("Deleting VM\n", .{});
+                deleting_vm = false;
+            }
         }
     }
 
