@@ -87,8 +87,6 @@ var drives_options = std.mem.zeroes([5]struct {
 });
 
 var deleting_vm = false;
-var deleting_vm_name = std.mem.zeroes([128]u8);
-var deleting_vm_index: ?u64 = null;
 var deletion_confirmation = false;
 var deletion_confirmation_text = std.mem.zeroes([128]u8);
 
@@ -181,8 +179,6 @@ pub fn guiFrame() !void {
             }
 
             deleting_vm = true;
-            set_buffer(&deleting_vm_name, vm.basic.name);
-            deleting_vm_index = vm_index;
         }
 
         if (deleting_vm) {
@@ -953,17 +949,15 @@ fn delete_confirmation_modal() !void {
         // Cancel button
         if (try gui.button(@src(), "Cancel", .{ .expand = .horizontal, .color_style = .accent })) {
             deleting_vm = false;
-            deleting_vm_name = std.mem.zeroes(@TypeOf(deleting_vm_name));
-            deleting_vm_index = null;
-            std.debug.print("Cancelled deletion of VM: {s}\n", .{deleting_vm_name});
+            std.debug.print("Cancelled deletion of VM: {s}\n", .{vm.basic.name});
         }
 
         // Confirmation button
         if (try gui.button(@src(), "Confirm", .{ .expand = .horizontal, .color_style = .err })) {
-            std.debug.print("Deleting VM: {s}\n", .{deleting_vm_name});
+            std.debug.print("Deleting VM: {s}\n", .{vm.basic.name});
 
-            // If the confirmation text is incorrect, don't delete the VM
-            if (!std.mem.eql(u8, &deletion_confirmation_text, &deleting_vm_name)) {
+            // Use starts with because the deletion confirmation is the full buffer
+            if (!std.mem.startsWith(u8, &deletion_confirmation_text, vm.basic.name)) {
                 try gui.dialog(@src(), .{
                     .title = "Error: VM Name Mismatch",
                     .message = "Make sure you enter the full name of the VM to confirm deletion!",
@@ -972,13 +966,9 @@ fn delete_confirmation_modal() !void {
             }
 
             // // Delete VM directory
-            try main.virtual_machines_directory.deleteTree(&deleting_vm_name);
+            try main.virtual_machines_directory.deleteTree(vm.basic.name);
             // // Remove VM from array list
-            _ = main.virtual_machines.swapRemove(deleting_vm_index.?);
-
-            // Remove reset VM state
-            deleting_vm_name = std.mem.zeroes(@TypeOf(deleting_vm_name));
-            deleting_vm_index = null;
+            _ = main.virtual_machines.swapRemove(vm_index);
 
             // Close window
             show = false;
