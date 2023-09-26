@@ -174,16 +174,12 @@ pub fn guiFrame() !void {
         }
 
         if (try gui.button(@src(), "Delete", .{ .expand = .horizontal, .color_style = .err })) {
-            if (deleting_vm) {
-                return;
-            }
+            if (deleting_vm) return;
 
             deleting_vm = true;
         }
 
-        if (deleting_vm) {
-            try delete_confirmation_modal();
-        }
+        if (deleting_vm) try delete_confirmation_modal();
     }
 
     {
@@ -907,9 +903,7 @@ fn delete_confirmation_modal() !void {
     defer confirmation_vbox.deinit();
 
     // Render some text to confirm deletion
-    try gui.label(@src(), "Are you sure you want to delete this virtual machine?", .{}, .{
-        .expand = .horizontal,
-    });
+    try gui.label(@src(), "Are you sure you want to delete this virtual machine?", .{}, .{ .expand = .horizontal });
 
     // Confirmation text input
     {
@@ -932,9 +926,7 @@ fn delete_confirmation_modal() !void {
             .text = &deletion_confirmation_text,
             .scroll_vertical = false,
             .scroll_horizontal_bar = .hide,
-        }, .{
-            .expand = .horizontal,
-        });
+        }, .{ .expand = .horizontal });
         defer confirmation_input.deinit();
     }
 
@@ -947,17 +939,12 @@ fn delete_confirmation_modal() !void {
         defer confirmation_hbox.deinit();
 
         // Cancel button
-        if (try gui.button(@src(), "Cancel", .{ .expand = .horizontal, .color_style = .accent })) {
-            deleting_vm = false;
-            std.debug.print("Cancelled deletion of VM: {s}\n", .{vm.basic.name});
-        }
+        if (try gui.button(@src(), "Cancel", .{ .expand = .horizontal, .color_style = .accent })) deleting_vm = false;
 
         // Confirmation button
         if (try gui.button(@src(), "Confirm", .{ .expand = .horizontal, .color_style = .err })) {
-            std.debug.print("Deleting VM: {s}\n", .{vm.basic.name});
-
             // Use starts with because the deletion confirmation is the full buffer
-            if (!std.mem.startsWith(u8, &deletion_confirmation_text, vm.basic.name)) {
+            if (!std.mem.eql(u8, deletion_confirmation_text[0..vm.basic.name.len], vm.basic.name)) {
                 try gui.dialog(@src(), .{
                     .title = "Error: VM Name Mismatch",
                     .message = "Make sure you enter the full name of the VM to confirm deletion!",
@@ -965,9 +952,9 @@ fn delete_confirmation_modal() !void {
                 return;
             }
 
-            // // Delete VM directory
+            // Delete VM directory
             try main.virtual_machines_directory.deleteTree(vm.basic.name);
-            // // Remove VM from array list
+            // Remove VM from array list
             _ = main.virtual_machines.swapRemove(vm_index);
 
             // Close window
