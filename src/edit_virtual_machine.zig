@@ -722,7 +722,7 @@ fn graphics_gui_frame() !void {
 fn audio_gui_frame() !void {
     option_index = 0;
 
-    try utils.addComboOption("Host device", &.{ "None", "Auto", "SDL", "ALSA", "OSS", "PulseAudio", "sndio", "CoreAudio", "DirectSound", "WAV" }, &host_device, &option_index);
+    try utils.addComboOption("Host device", &.{ "None", "Auto", "SDL", "ALSA", "OSS", "PulseAudio", "PipeWire", "sndio", "CoreAudio", "DirectSound", "WAV" }, &host_device, &option_index);
     try utils.addComboOption("Sound", &.{ "Sound Blaster 16", "AC97", "HDA ICH6", "HDA ICH9", "USB" }, &sound, &option_index);
     try utils.addBoolOption("Input", &has_input, &option_index);
     try utils.addBoolOption("Output", &has_output, &option_index);

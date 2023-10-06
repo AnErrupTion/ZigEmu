@@ -460,6 +460,7 @@ pub fn getArguments(allocator: Allocator, vm: structs.VirtualMachine, drives: []
         .alsa => try list.append("alsa,id=hostdev"),
         .oss => try list.append("oss,id=hostdev"),
         .pulseaudio => try list.append("pa,id=hostdev"),
+        .pipewire => try list.append("pipewire,id=hostdev"),
         .sndio => try list.append("sndio,id=hostdev"),
         .coreaudio => try list.append("coreaudio,id=hostdev"),
         .directsound => try list.append("dsound,id=hostdev"),

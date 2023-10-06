@@ -197,6 +197,7 @@ pub const HostDevice = enum {
     alsa,
     oss,
     pulseaudio,
+    pipewire,
     sndio,
     coreaudio,
     directsound,
