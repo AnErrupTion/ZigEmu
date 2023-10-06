@@ -3,8 +3,8 @@
     .version = "1.0.0",
     .dependencies = .{
         .dvui = .{
-            .url = "https://github.com/david-vanderson/dvui/archive/789c43319c66c42e1b534197c27cbd40070f6a61.tar.gz",
-            .hash = "1220eb8ed4b22e8897a8e82a4ed812b7065e1b55906bdb396f9345bce73cabd8c086",
+            .url = "https://github.com/david-vanderson/dvui/archive/346aa2818be3433d90847d7e60cd7d573fa59358.tar.gz",
+            .hash = "1220f52a5f73fb28dabe7e42a0885ba3ac49d3089530de0894f7608085c15ecfe53a",
         },
         .ini = .{
             .url = "https://github.com/AnErrupTion/zig-ini/archive/a40f3cae04939de0d795812a73633e0563cf3132.tar.gz",
