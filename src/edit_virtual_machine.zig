@@ -1,6 +1,7 @@
 const std = @import("std");
 const builtin = @import("builtin");
 const gui = @import("gui");
+const fonts = gui.fonts.bitstream_vera;
 const ini = @import("ini");
 const structs = @import("structs.zig");
 const main = @import("main.zig");
@@ -85,6 +86,10 @@ var drives_options = std.mem.zeroes([5]struct {
     path: [512]u8,
 });
 
+var deleting_vm = false;
+var deletion_confirmation = false;
+var deletion_confirmation_text = std.mem.zeroes([128]u8);
+
 pub fn init(frame_allocator: Allocator) !void {
     allocator = frame_allocator;
 
@@ -167,16 +172,14 @@ pub fn guiFrame() !void {
                 return;
             };
         }
+
         if (try gui.button(@src(), "Delete", .{ .expand = .horizontal, .color_style = .err })) {
-            // Delete VM directory
-            try main.virtual_machines_directory.deleteTree(vm.basic.name);
+            if (deleting_vm) return;
 
-            // Remove VM from array list
-            _ = main.virtual_machines.swapRemove(vm_index);
-
-            // Close window
-            show = false;
+            deleting_vm = true;
         }
+
+        if (deleting_vm) try delete_confirmation_modal();
     }
 
     {
@@ -879,5 +882,86 @@ fn set_buffer(buffer: []u8, value: []const u8) void {
     for (value) |c| {
         buffer[index] = c;
         index += 1;
+    }
+}
+
+fn delete_confirmation_modal() !void {
+    // Render a modal when deleting a VM
+    var confirmation_window = try gui.floatingWindow(@src(), .{
+        .modal = true,
+        .open_flag = &deleting_vm,
+    }, .{
+        .color_style = .window,
+        .min_size_content = .{ .w = 300, .h = 100 },
+    });
+    defer confirmation_window.deinit();
+
+    var confirmation_vbox = try gui.box(@src(), .vertical, .{
+        .expand = .both,
+        .padding = .{ .x = 20, .y = 20, .w = 20, .h = 20 },
+    });
+    defer confirmation_vbox.deinit();
+
+    // Render some text to confirm deletion
+    try gui.label(@src(), "Are you sure you want to delete this virtual machine?", .{}, .{ .expand = .horizontal });
+
+    // Confirmation text input
+    {
+        var confiration_input_vbox = try gui.box(@src(), .vertical, .{
+            .expand = .both,
+            .padding = .{ .x = 0, .y = 5, .w = 0, .h = 5 },
+        });
+        defer confiration_input_vbox.deinit();
+
+        try gui.label(@src(), "Enter the full name of the VM to confirm deletion:", .{}, .{
+            .expand = .horizontal,
+            .font = .{
+                .size = 8,
+                .name = "VeraIt",
+                .ttf_bytes = fonts.VeraIt,
+            },
+        });
+
+        var confirmation_input = try gui.textEntry(@src(), .{
+            .text = &deletion_confirmation_text,
+            .scroll_vertical = false,
+            .scroll_horizontal_bar = .hide,
+        }, .{ .expand = .horizontal });
+        defer confirmation_input.deinit();
+    }
+
+    // A horizontal box to render buttons
+    {
+        var confirmation_hbox = try gui.box(@src(), .horizontal, .{
+            .expand = .horizontal,
+            .margin = .{ .y = 5 },
+        });
+        defer confirmation_hbox.deinit();
+
+        // Cancel button
+        if (try gui.button(@src(), "Cancel", .{ .expand = .horizontal, .color_style = .accent })) deleting_vm = false;
+
+        // Confirmation button
+        if (try gui.button(@src(), "Confirm", .{ .expand = .horizontal, .color_style = .err })) {
+            // Use starts with because the deletion confirmation is the full buffer
+            if (!std.mem.eql(u8, deletion_confirmation_text[0..vm.basic.name.len], vm.basic.name)) {
+                try gui.dialog(@src(), .{
+                    .title = "Error: VM Name Mismatch",
+                    .message = "Make sure you enter the full name of the VM to confirm deletion!",
+                });
+                return;
+            }
+
+            // Delete VM directory
+            try main.virtual_machines_directory.deleteTree(vm.basic.name);
+            // Remove VM from array list
+            _ = main.virtual_machines.swapRemove(vm_index);
+
+            // Close window
+            show = false;
+
+            // Stop deleting VM
+            deleting_vm = false;
+        }
     }
 }
