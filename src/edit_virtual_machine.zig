@@ -182,46 +182,22 @@ pub fn guiFrame() !void {
         if (deleting_vm) try delete_confirmation_modal();
     }
 
-    {
-        var vbox = try gui.box(@src(), .vertical, .{ .expand = .both, .padding = .{ .x = 20, .y = 20, .w = 20, .h = 20 } });
-        defer vbox.deinit();
+    var vbox = try gui.box(@src(), .vertical, .{ .expand = .both, .padding = .{ .x = 20, .y = 20, .w = 20, .h = 20 } });
+    defer vbox.deinit();
 
-        switch (setting) {
-            0 => {
-                try qemu_gui_frame();
-            },
-            1 => {
-                try basic_gui_frame();
-            },
-            2 => {
-                try firmware_gui_frame();
-            },
-            3 => {
-                try memory_gui_frame();
-            },
-            4 => {
-                try processor_gui_frame();
-            },
-            5 => {
-                try network_gui_frame();
-            },
-            6 => {
-                try graphics_gui_frame();
-            },
-            7 => {
-                try audio_gui_frame();
-            },
-            8 => {
-                try peripherals_gui_frame();
-            },
-            9 => {
-                try drives_gui_frame();
-            },
-            10 => {
-                try command_line_gui_frame();
-            },
-            else => {},
-        }
+    switch (setting) {
+        0 => try qemu_gui_frame(),
+        1 => try basic_gui_frame(),
+        2 => try firmware_gui_frame(),
+        3 => try memory_gui_frame(),
+        4 => try processor_gui_frame(),
+        5 => try network_gui_frame(),
+        6 => try graphics_gui_frame(),
+        7 => try audio_gui_frame(),
+        8 => try peripherals_gui_frame(),
+        9 => try drives_gui_frame(),
+        10 => try command_line_gui_frame(),
+        else => {},
     }
 }
 

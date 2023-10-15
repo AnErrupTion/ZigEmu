@@ -65,15 +65,10 @@ pub fn main() !void {
 
     win.theme = &gui.Adwaita.dark;
 
-    var arena = std.heap.ArenaAllocator.init(allocator);
-    const arena_alloc = arena.allocator();
-
     while (true) {
-        defer _ = arena.reset(.free_all);
-
         var nstime = win.beginWait(backend.hasEvent());
 
-        try win.begin(arena_alloc, nstime);
+        try win.begin(nstime);
 
         const quit = try backend.addAllEvents(&win);
         if (quit) break;
