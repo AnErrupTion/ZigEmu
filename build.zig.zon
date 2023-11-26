@@ -3,12 +3,12 @@
     .version = "1.0.0",
     .dependencies = .{
         .dvui = .{
-            .url = "https://github.com/david-vanderson/dvui/archive/0142ffa2c6da9722d4a0299ec7e0a08fb2e616bb.tar.gz",
-            .hash = "122034ed68aeea9edc56fdec90b2d43ac6d29bbcda18b32aa4bf9759a8ae2af140e1",
+            .url = "https://github.com/david-vanderson/dvui/archive/eff2fd1e0c2748e6a2ceb66a263db8d5a8a7365e.tar.gz",
+            .hash = "122027cba0298b39d20dd113f57ff30fb37cff6f66ca7409a97bb26388a4e245a21b",
         },
         .ini = .{
-            .url = "https://github.com/AnErrupTion/zig-ini/archive/a40f3cae04939de0d795812a73633e0563cf3132.tar.gz",
-            .hash = "1220b39fc35714d235fd9633422f5ba3c4aba44f1ecaf29cf91515963f0b08a3da89",
+            .url = "https://github.com/AnErrupTion/zig-ini/archive/7ab77196a4dc63d1ede50e0a1af1a8325c152f2f.tar.gz",
+            .hash = "12204b1d133060dd0c4304d5e0fbdb33a70038118e7c112b14b5f8d176ea15cd5939",
         },
     },
 }

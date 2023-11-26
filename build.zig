@@ -37,6 +37,13 @@ fn link_deps(exe: *std.Build.Step.Compile, b: *std.Build) void {
         .optimize = exe.optimize,
     });
     exe.linkLibrary(freetype_dep.artifact("freetype"));
+
+    const stbi_dep = b.dependency("stb_image", .{
+        .target = exe.target,
+        .optimize = exe.optimize,
+    });
+    exe.linkLibrary(stbi_dep.artifact("stb_image"));
+
     exe.linkLibC();
 
     if (exe.target.isWindows()) {

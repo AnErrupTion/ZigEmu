@@ -9,7 +9,7 @@ const edit_virtual_machine = @import("edit_virtual_machine.zig");
 const permanent_buffers = @import("permanent_buffers.zig");
 const Allocator = std.mem.Allocator;
 
-pub var virtual_machines_directory: std.fs.Dir = undefined;
+pub var virtual_machines_directory: std.fs.IterableDir = undefined;
 pub var virtual_machines: std.ArrayList(structs.VirtualMachine) = undefined;
 
 pub fn main() !void {
@@ -21,40 +21,39 @@ pub fn main() !void {
     permanent_buffers.init(allocator);
     defer permanent_buffers.deinit();
 
-    std.fs.cwd().makeDir("VMs") catch {
-        std.debug.print("Warning: VMs directory already exists.\n", .{});
+    std.fs.cwd().makeDir("VMs") catch |err| {
+        if (err == error.PathAlreadyExists) {
+            std.debug.print("Warning: VMs directory already exists.\n", .{});
+        } else {
+            return err;
+        }
     };
 
-    virtual_machines_directory = std.fs.cwd().openDir("VMs", .{}) catch unreachable;
+    virtual_machines_directory = try std.fs.cwd().openIterableDir("VMs", .{});
     defer virtual_machines_directory.close();
 
     virtual_machines = std.ArrayList(structs.VirtualMachine).init(allocator);
     defer virtual_machines.deinit();
 
     // Iterate over all directories inside the "VMs" directory
-    {
-        var directories = std.fs.cwd().openIterableDir("VMs", .{}) catch unreachable;
-        defer directories.close();
+    var iterator = virtual_machines_directory.iterate();
 
-        var iterator = directories.iterate();
+    while (try iterator.next()) |directory| {
+        var files = try virtual_machines_directory.dir.openDir(directory.name, .{});
+        defer files.close();
 
-        while (try iterator.next()) |directory| {
-            var files = virtual_machines_directory.openDir(directory.name, .{}) catch unreachable;
-            defer files.close();
+        var config = try files.readFileAlloc(allocator, "config.ini", 16 * 1024);
+        var vm = try ini.readToStruct(structs.VirtualMachine, config);
 
-            var config = try files.readFileAlloc(allocator, "config.ini", 16 * 1024);
-            var vm = try ini.readToStruct(structs.VirtualMachine, config);
-
-            try permanent_buffers.arrays.append(config);
-            try virtual_machines.append(vm);
-        }
+        try permanent_buffers.arrays.append(config);
+        try virtual_machines.append(vm);
     }
 
-    try virtual_machines_directory.setAsCwd();
+    try virtual_machines_directory.dir.setAsCwd();
 
     var backend = try Backend.init(.{
-        .width = 1024,
-        .height = 768,
+        .size = .{ .w = 1024, .h = 768 },
+        .min_size = .{ .w = 800, .h = 600 },
         .vsync = true,
         .title = "ZigEmu",
     });
@@ -132,7 +131,7 @@ fn gui_frame(allocator: Allocator) !void {
         defer scroll.deinit();
 
         for (virtual_machines.items, 0..) |vm, i| {
-            if (try gui.button(@src(), vm.basic.name, .{ .expand = .horizontal, .color_style = .accent, .id_extra = i })) {
+            if (try gui.button(@src(), vm.basic.name, .{}, .{ .expand = .horizontal, .color_style = .accent, .id_extra = i })) {
                 edit_virtual_machine.vm = vm;
                 edit_virtual_machine.vm_index = i;
                 edit_virtual_machine.show = true;

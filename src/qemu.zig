@@ -284,7 +284,7 @@ pub fn getArguments(allocator: Allocator, vm: structs.VirtualMachine, drives: []
             if (vm.basic.architecture != .amd64) unreachable;
 
             const paths = if (vm.qemu.override_qemu_path) &[_][]const u8{vm.qemu.qemu_path} else switch (builtin.os.tag) {
-                .linux => &[_][]const u8{"/usr/share/qemu"},
+                .linux => &[_][]const u8{ "/usr/share/qemu", "/usr/share/seabios" },
                 else => unreachable, // TODO: Firmware path auto-detection for Windows and macOS
             };
 
@@ -300,7 +300,7 @@ pub fn getArguments(allocator: Allocator, vm: structs.VirtualMachine, drives: []
         .uefi => {
             const paths = if (vm.qemu.override_qemu_path) &[_][]const u8{vm.qemu.qemu_path} else switch (builtin.os.tag) {
                 .linux => switch (vm.basic.architecture) {
-                    .amd64 => &[_][]const u8{ "/usr/share/qemu", "/usr/share/OVMF/x64" },
+                    .amd64 => &[_][]const u8{ "/usr/share/qemu", "/usr/share/OVMF", "/usr/share/OVMF/x64" },
                 },
                 else => unreachable, // TODO: Firmware path auto-detection for Windows and macOS
             };

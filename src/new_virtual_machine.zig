@@ -58,7 +58,7 @@ pub fn guiFrame() !void {
     try utils.addBoolOption("Add a boot image", &has_boot_image, &option_index);
     if (has_boot_image) try utils.addTextOption("Boot image", &boot_image, &option_index);
 
-    if (try gui.button(@src(), "Create", .{ .expand = .horizontal, .color_style = .accent })) {
+    if (try gui.button(@src(), "Create", .{}, .{ .expand = .horizontal, .color_style = .accent })) {
         var actual_name = utils.sanitizeOutputText(allocator, &name, true) catch {
             try gui.dialog(@src(), .{ .title = "Error", .message = "Please enter a valid name!" });
             return;
@@ -140,7 +140,7 @@ pub fn guiFrame() !void {
             };
         }
 
-        try main.virtual_machines_directory.setAsCwd();
+        try main.virtual_machines_directory.dir.setAsCwd();
 
         show = false;
     }

@@ -120,7 +120,7 @@ pub fn init(frame_allocator: Allocator) !void {
 }
 
 pub fn deinit() !void {
-    try main.virtual_machines_directory.setAsCwd();
+    try main.virtual_machines_directory.dir.setAsCwd();
 
     vm_directory.close();
 
@@ -150,18 +150,18 @@ pub fn guiFrame() !void {
         var vbox = try gui.box(@src(), .vertical, .{});
         defer vbox.deinit();
 
-        if (try gui.button(@src(), "QEMU", .{ .expand = .horizontal })) setting = 0;
-        if (try gui.button(@src(), "Basic", .{ .expand = .horizontal })) setting = 1;
-        if (try gui.button(@src(), "Firmware", .{ .expand = .horizontal })) setting = 2;
-        if (try gui.button(@src(), "Memory", .{ .expand = .horizontal })) setting = 3;
-        if (try gui.button(@src(), "Processor", .{ .expand = .horizontal })) setting = 4;
-        if (try gui.button(@src(), "Network", .{ .expand = .horizontal })) setting = 5;
-        if (try gui.button(@src(), "Graphics", .{ .expand = .horizontal })) setting = 6;
-        if (try gui.button(@src(), "Audio", .{ .expand = .horizontal })) setting = 7;
-        if (try gui.button(@src(), "Peripherals", .{ .expand = .horizontal })) setting = 8;
-        if (try gui.button(@src(), "Drives", .{ .expand = .horizontal })) setting = 9;
-        if (try gui.button(@src(), "Command line", .{ .expand = .horizontal })) setting = 10;
-        if (try gui.button(@src(), "Run", .{ .expand = .horizontal, .color_style = .accent })) {
+        if (try gui.button(@src(), "QEMU", .{}, .{ .expand = .horizontal })) setting = 0;
+        if (try gui.button(@src(), "Basic", .{}, .{ .expand = .horizontal })) setting = 1;
+        if (try gui.button(@src(), "Firmware", .{}, .{ .expand = .horizontal })) setting = 2;
+        if (try gui.button(@src(), "Memory", .{}, .{ .expand = .horizontal })) setting = 3;
+        if (try gui.button(@src(), "Processor", .{}, .{ .expand = .horizontal })) setting = 4;
+        if (try gui.button(@src(), "Network", .{}, .{ .expand = .horizontal })) setting = 5;
+        if (try gui.button(@src(), "Graphics", .{}, .{ .expand = .horizontal })) setting = 6;
+        if (try gui.button(@src(), "Audio", .{}, .{ .expand = .horizontal })) setting = 7;
+        if (try gui.button(@src(), "Peripherals", .{}, .{ .expand = .horizontal })) setting = 8;
+        if (try gui.button(@src(), "Drives", .{}, .{ .expand = .horizontal })) setting = 9;
+        if (try gui.button(@src(), "Command line", .{}, .{ .expand = .horizontal })) setting = 10;
+        if (try gui.button(@src(), "Run", .{}, .{ .expand = .horizontal, .color_style = .accent })) {
             var qemu_arguments = try qemu.getArguments(allocator, vm, drives);
             defer qemu_arguments.deinit();
 
@@ -173,7 +173,7 @@ pub fn guiFrame() !void {
             };
         }
 
-        if (try gui.button(@src(), "Delete", .{ .expand = .horizontal, .color_style = .err })) {
+        if (try gui.button(@src(), "Delete", .{}, .{ .expand = .horizontal, .color_style = .err })) {
             if (deleting_vm) return;
 
             deleting_vm = true;
@@ -315,7 +315,7 @@ fn qemu_gui_frame() !void {
     try utils.addBoolOption("Override QEMU path", &override_qemu_path, &option_index);
     if (override_qemu_path) try utils.addTextOption("QEMU path", &qemu_path, &option_index);
 
-    if (try gui.button(@src(), "Save", .{ .expand = .horizontal, .color_style = .accent })) {
+    if (try gui.button(@src(), "Save", .{}, .{ .expand = .horizontal, .color_style = .accent })) {
         // Write updated data to struct
         vm.qemu.override_qemu_path = override_qemu_path;
         vm.qemu.qemu_path = (utils.sanitizeOutputText(allocator, &qemu_path, false) catch {
@@ -338,7 +338,7 @@ fn basic_gui_frame() !void {
     try utils.addComboOption("USB type", &.{ "None", "OHCI (Open 1.0)", "UHCI (Proprietary 1.0)", "EHCI (2.0)", "XHCI (3.0)" }, &usb_type, &option_index);
     try utils.addBoolOption("Use AHCI", &has_ahci, &option_index);
 
-    if (try gui.button(@src(), "Save", .{ .expand = .horizontal, .color_style = .accent })) {
+    if (try gui.button(@src(), "Save", .{}, .{ .expand = .horizontal, .color_style = .accent })) {
         const old_name = vm.basic.name;
 
         // Write updated data to struct
@@ -354,7 +354,7 @@ fn basic_gui_frame() !void {
 
         // Rename VM folder if name has changed
         if (!std.mem.eql(u8, old_name, vm.basic.name)) {
-            try main.virtual_machines_directory.rename(old_name, vm.basic.name);
+            try main.virtual_machines_directory.dir.rename(old_name, vm.basic.name);
         }
 
         // Sanity checks
@@ -399,7 +399,7 @@ fn firmware_gui_frame() !void {
     try utils.addComboOption("Type", &.{ "BIOS", "UEFI", "Custom PC", "Custom PFlash" }, &firmware_type, &option_index);
     if (firmware_type >= 2) try utils.addTextOption("Path", &firmware_path, &option_index);
 
-    if (try gui.button(@src(), "Save", .{ .expand = .horizontal, .color_style = .accent })) {
+    if (try gui.button(@src(), "Save", .{}, .{ .expand = .horizontal, .color_style = .accent })) {
         // Write updated data to struct
         vm.firmware.type = @enumFromInt(firmware_type);
         vm.firmware.firmware_path = (utils.sanitizeOutputText(allocator, &firmware_path, false) catch {
@@ -423,7 +423,7 @@ fn memory_gui_frame() !void {
 
     try utils.addTextOption("RAM (in MiB)", &ram, &option_index);
 
-    if (try gui.button(@src(), "Save", .{ .expand = .horizontal, .color_style = .accent })) {
+    if (try gui.button(@src(), "Save", .{}, .{ .expand = .horizontal, .color_style = .accent })) {
         // Write updated data to struct
         vm.memory.ram = utils.sanitizeOutputNumber(allocator, &ram) catch {
             try gui.dialog(@src(), .{ .title = "Error", .message = "Please enter a valid amount of RAM!" });
@@ -576,7 +576,7 @@ fn processor_gui_frame() !void {
     try utils.addTextOption("Cores", &cores, &option_index);
     try utils.addTextOption("Threads", &threads, &option_index);
 
-    if (try gui.button(@src(), "Save", .{ .expand = .horizontal, .color_style = .accent })) {
+    if (try gui.button(@src(), "Save", .{}, .{ .expand = .horizontal, .color_style = .accent })) {
         // Write updated data to struct
         vm.processor.cpu = @enumFromInt(cpu);
         vm.processor.features = (utils.sanitizeOutputText(allocator, &features, false) catch {
@@ -609,7 +609,7 @@ fn network_gui_frame() !void {
     try utils.addComboOption("Type", &.{ "None", "NAT" }, &network_type, &option_index);
     try utils.addComboOption("Interface", &.{ "RTL8139", "E1000", "E1000e", "VMware", "USB", "VirtIO" }, &interface, &option_index);
 
-    if (try gui.button(@src(), "Save", .{ .expand = .horizontal, .color_style = .accent })) {
+    if (try gui.button(@src(), "Save", .{}, .{ .expand = .horizontal, .color_style = .accent })) {
         // Write updated data to struct
         vm.network.type = @enumFromInt(network_type);
         vm.network.interface = @enumFromInt(interface);
@@ -655,7 +655,7 @@ fn graphics_gui_frame() !void {
     if (gpu == 1 or gpu == 2 or gpu == 4) has_vga_emulation = true;
     if (gpu >= 1 and gpu <= 4) has_graphics_acceleration = false;
 
-    if (try gui.button(@src(), "Save", .{ .expand = .horizontal, .color_style = .accent })) {
+    if (try gui.button(@src(), "Save", .{}, .{ .expand = .horizontal, .color_style = .accent })) {
         // Write updated data to struct
         vm.graphics.display = @enumFromInt(display);
         vm.graphics.sdl_grab_modifier_keys = (utils.sanitizeOutputText(allocator, &sdl_grab_modifier_keys, false) catch {
@@ -712,7 +712,7 @@ fn audio_gui_frame() !void {
         has_output = true;
     }
 
-    if (try gui.button(@src(), "Save", .{ .expand = .horizontal, .color_style = .accent })) {
+    if (try gui.button(@src(), "Save", .{}, .{ .expand = .horizontal, .color_style = .accent })) {
         // Write updated data to struct
         vm.audio.host_device = @enumFromInt(host_device);
         vm.audio.sound = @enumFromInt(sound);
@@ -746,7 +746,7 @@ fn peripherals_gui_frame() !void {
     try utils.addComboOption("Mouse", &.{ "None", "USB", "VirtIO" }, &mouse, &option_index);
     try utils.addBoolOption("Absolute mouse pointing", &has_mouse_absolute_pointing, &option_index);
 
-    if (try gui.button(@src(), "Save", .{ .expand = .horizontal, .color_style = .accent })) {
+    if (try gui.button(@src(), "Save", .{}, .{ .expand = .horizontal, .color_style = .accent })) {
         // Write updated data to struct
         vm.peripherals.keyboard = @enumFromInt(keyboard);
         vm.peripherals.mouse = @enumFromInt(mouse);
@@ -792,7 +792,7 @@ fn drives_gui_frame() !void {
         if (drive_options.bus != 0) drive_options.*.is_removable = false;
     }
 
-    if (try gui.button(@src(), "Save", .{ .expand = .horizontal, .color_style = .accent })) {
+    if (try gui.button(@src(), "Save", .{}, .{ .expand = .horizontal, .color_style = .accent })) {
         // Write updated data to struct
         for (drives, 0..) |drive, i| {
             var drive_options = drives_options[i];
@@ -837,7 +837,7 @@ fn command_line_gui_frame() !void {
         try arguments.appendSlice(" \\\n    ");
     }
 
-    var entry = try gui.textEntry(@src(), .{ .text = arguments.items }, .{ .expand = .both });
+    var entry = try gui.textEntry(@src(), .{ .text = arguments.items, .multiline = true }, .{ .expand = .both });
     defer entry.deinit();
 }
 
@@ -915,10 +915,10 @@ fn delete_confirmation_modal() !void {
         defer confirmation_hbox.deinit();
 
         // Cancel button
-        if (try gui.button(@src(), "Cancel", .{ .expand = .horizontal, .color_style = .accent })) deleting_vm = false;
+        if (try gui.button(@src(), "Cancel", .{}, .{ .expand = .horizontal, .color_style = .accent })) deleting_vm = false;
 
         // Confirmation button
-        if (try gui.button(@src(), "Confirm", .{ .expand = .horizontal, .color_style = .err })) {
+        if (try gui.button(@src(), "Confirm", .{}, .{ .expand = .horizontal, .color_style = .err })) {
             // Use starts with because the deletion confirmation is the full buffer
             if (!std.mem.eql(u8, deletion_confirmation_text[0..vm.basic.name.len], vm.basic.name)) {
                 try gui.dialog(@src(), .{
@@ -929,7 +929,7 @@ fn delete_confirmation_modal() !void {
             }
 
             // Delete VM directory
-            try main.virtual_machines_directory.deleteTree(vm.basic.name);
+            try main.virtual_machines_directory.dir.deleteTree(vm.basic.name);
             // Remove VM from array list
             _ = main.virtual_machines.swapRemove(vm_index);
 
