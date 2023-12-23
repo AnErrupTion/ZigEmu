@@ -100,12 +100,12 @@ pub fn init(frame_allocator: Allocator) !void {
     drives[3] = &vm.drive3;
     drives[4] = &vm.drive4;
 
-    vm_directory = try std.fs.cwd().openDir(vm.basic.name, .{});
+    vm_directory = try std.fs.cwd().openDir(vm.system.name, .{});
 
     try vm_directory.setAsCwd();
 
     try init_qemu();
-    try init_basic();
+    try init_system();
     try init_firmware();
     try init_memory();
     try init_processor();
@@ -141,7 +141,7 @@ pub fn guiFrame() !void {
     var window = try gui.floatingWindow(@src(), .{ .open_flag = &show }, .{ .min_size_content = .{ .w = 800, .h = 600 } });
     defer window.deinit();
 
-    try gui.windowHeader("Edit virtual machine", vm.basic.name, &show);
+    try gui.windowHeader("Edit virtual machine", vm.system.name, &show);
 
     var hbox = try gui.box(@src(), .horizontal, .{ .expand = .horizontal, .min_size_content = .{ .h = 600 } });
     defer hbox.deinit();
@@ -151,7 +151,7 @@ pub fn guiFrame() !void {
         defer vbox.deinit();
 
         if (try gui.button(@src(), "QEMU", .{}, .{ .expand = .horizontal })) setting = 0;
-        if (try gui.button(@src(), "Basic", .{}, .{ .expand = .horizontal })) setting = 1;
+        if (try gui.button(@src(), "System", .{}, .{ .expand = .horizontal })) setting = 1;
         if (try gui.button(@src(), "Firmware", .{}, .{ .expand = .horizontal })) setting = 2;
         if (try gui.button(@src(), "Memory", .{}, .{ .expand = .horizontal })) setting = 3;
         if (try gui.button(@src(), "Processor", .{}, .{ .expand = .horizontal })) setting = 4;
@@ -187,7 +187,7 @@ pub fn guiFrame() !void {
 
     switch (setting) {
         0 => try qemu_gui_frame(),
-        1 => try basic_gui_frame(),
+        1 => try system_gui_frame(),
         2 => try firmware_gui_frame(),
         3 => try memory_gui_frame(),
         4 => try processor_gui_frame(),
@@ -208,15 +208,15 @@ fn init_qemu() !void {
     set_buffer(&qemu_path, vm.qemu.qemu_path);
 }
 
-fn init_basic() !void {
+fn init_system() !void {
     @memset(&name, 0);
 
-    set_buffer(&name, vm.basic.name);
-    architecture = @intFromEnum(vm.basic.architecture);
-    has_acceleration = vm.basic.has_acceleration;
-    chipset = @intFromEnum(vm.basic.chipset);
-    usb_type = @intFromEnum(vm.basic.usb_type);
-    has_ahci = vm.basic.has_ahci;
+    set_buffer(&name, vm.system.name);
+    architecture = @intFromEnum(vm.system.architecture);
+    has_acceleration = vm.system.has_acceleration;
+    chipset = @intFromEnum(vm.system.chipset);
+    usb_type = @intFromEnum(vm.system.usb_type);
+    has_ahci = vm.system.has_ahci;
 }
 
 fn init_firmware() !void {
@@ -328,7 +328,7 @@ fn qemu_gui_frame() !void {
     }
 }
 
-fn basic_gui_frame() !void {
+fn system_gui_frame() !void {
     option_index = 0;
 
     try utils.addTextOption("Name", &name, &option_index);
@@ -339,50 +339,50 @@ fn basic_gui_frame() !void {
     try utils.addBoolOption("Use AHCI", &has_ahci, &option_index);
 
     if (try gui.button(@src(), "Save", .{}, .{ .expand = .horizontal, .color_style = .accent })) {
-        const old_name = vm.basic.name;
+        const old_name = vm.system.name;
 
         // Write updated data to struct
-        vm.basic.name = (utils.sanitizeOutputText(allocator, &name, true) catch {
+        vm.system.name = (utils.sanitizeOutputText(allocator, &name, true) catch {
             try gui.dialog(@src(), .{ .title = "Error", .message = "Please enter a valid name!" });
             return;
         }).items;
-        vm.basic.architecture = @enumFromInt(architecture);
-        vm.basic.has_acceleration = has_acceleration;
-        vm.basic.chipset = @enumFromInt(chipset);
-        vm.basic.usb_type = @enumFromInt(usb_type);
-        vm.basic.has_ahci = has_ahci;
+        vm.system.architecture = @enumFromInt(architecture);
+        vm.system.has_acceleration = has_acceleration;
+        vm.system.chipset = @enumFromInt(chipset);
+        vm.system.usb_type = @enumFromInt(usb_type);
+        vm.system.has_ahci = has_ahci;
 
         // Rename VM folder if name has changed
-        if (!std.mem.eql(u8, old_name, vm.basic.name)) {
-            try main.virtual_machines_directory.dir.rename(old_name, vm.basic.name);
+        if (!std.mem.eql(u8, old_name, vm.system.name)) {
+            try main.virtual_machines_directory.dir.rename(old_name, vm.system.name);
         }
 
         // Sanity checks
-        if (vm.processor.cpu == .host and !vm.basic.has_acceleration) {
+        if (vm.processor.cpu == .host and !vm.system.has_acceleration) {
             try gui.dialog(@src(), .{ .title = "Error", .message = "CPU model \"host\" requires hardware acceleration." });
             return;
-        } else if (vm.basic.usb_type == .none and vm.network.interface == .usb) {
+        } else if (vm.system.usb_type == .none and vm.network.interface == .usb) {
             try gui.dialog(@src(), .{ .title = "Error", .message = "Network interface \"usb\" requires a USB controller." });
             return;
-        } else if (vm.basic.usb_type == .none and vm.audio.sound == .usb) {
+        } else if (vm.system.usb_type == .none and vm.audio.sound == .usb) {
             try gui.dialog(@src(), .{ .title = "Error", .message = "Sound device \"usb\" requires a USB controller." });
             return;
-        } else if (vm.basic.usb_type == .none and vm.peripherals.keyboard == .usb) {
+        } else if (vm.system.usb_type == .none and vm.peripherals.keyboard == .usb) {
             try gui.dialog(@src(), .{ .title = "Error", .message = "Keyboard model \"usb\" requires a USB controller." });
             return;
-        } else if (vm.basic.usb_type == .none and vm.peripherals.mouse == .usb) {
+        } else if (vm.system.usb_type == .none and vm.peripherals.mouse == .usb) {
             try gui.dialog(@src(), .{ .title = "Error", .message = "Mouse model \"usb\" requires a USB controller." });
             return;
-        } else if (vm.basic.architecture != .amd64 and vm.firmware.type == .bios) {
+        } else if (vm.system.architecture != .amd64 and vm.firmware.type == .bios) {
             try gui.dialog(@src(), .{ .title = "Error", .message = "Firmware \"bios\" only works with the AMD64 architecture." });
             return;
         }
 
         for (drives, 0..) |drive, i| {
-            if (vm.basic.usb_type == .none and drive.bus == .usb) {
+            if (vm.system.usb_type == .none and drive.bus == .usb) {
                 try gui.dialog(@src(), .{ .title = "Error", .message = try std.fmt.bufPrint(&format_buffer, "Bus \"usb\" of drive {d} requires a USB controller.", .{i}) });
                 return;
-            } else if (!vm.basic.has_ahci and drive.bus == .sata) {
+            } else if (!vm.system.has_ahci and drive.bus == .sata) {
                 try gui.dialog(@src(), .{ .title = "Error", .message = try std.fmt.bufPrint(&format_buffer, "Bus \"sata\" of drive {d} requires a USB controller.", .{i}) });
                 return;
             }
@@ -408,7 +408,7 @@ fn firmware_gui_frame() !void {
         }).items;
 
         // Sanity checks
-        if (vm.firmware.type == .bios and vm.basic.architecture != .amd64) {
+        if (vm.firmware.type == .bios and vm.system.architecture != .amd64) {
             try gui.dialog(@src(), .{ .title = "Error", .message = "Firmware \"bios\" only works with the AMD64 architecture." });
             return;
         }
@@ -593,7 +593,7 @@ fn processor_gui_frame() !void {
         };
 
         // Sanity checks
-        if (vm.processor.cpu == .host and !vm.basic.has_acceleration) {
+        if (vm.processor.cpu == .host and !vm.system.has_acceleration) {
             try gui.dialog(@src(), .{ .title = "Error", .message = "CPU model \"host\" requires hardware acceleration." });
             return;
         }
@@ -702,13 +702,16 @@ fn audio_gui_frame() !void {
     option_index = 0;
 
     try utils.addComboOption("Host device", &.{ "None", "Auto", "SDL", "ALSA", "OSS", "PulseAudio", "PipeWire", "sndio", "CoreAudio", "DirectSound", "WAV" }, &host_device, &option_index);
-    try utils.addComboOption("Sound", &.{ "Sound Blaster 16", "AC97", "HDA ICH6", "HDA ICH9", "USB" }, &sound, &option_index);
+    try utils.addComboOption("Sound", &.{ "Sound Blaster 16", "AC97", "HDA ICH6", "HDA ICH9", "USB", "VirtIO" }, &sound, &option_index);
     try utils.addBoolOption("Input", &has_input, &option_index);
     try utils.addBoolOption("Output", &has_output, &option_index);
 
     // First sanity checks
     if (sound <= 1 or sound == 4) {
         has_input = false;
+        has_output = true;
+    } else if (sound == 5 and has_input and !has_output) {
+        // QEMU limitation, see comment about it in qemu.zig
         has_output = true;
     }
 
@@ -720,7 +723,7 @@ fn audio_gui_frame() !void {
         vm.audio.has_output = has_output;
 
         // Second sanity checks
-        if (vm.audio.sound == .usb and vm.basic.usb_type == .none) {
+        if (vm.audio.sound == .usb and vm.system.usb_type == .none) {
             try gui.dialog(@src(), .{ .title = "Error", .message = "Sound device \"usb\" requires a USB controller." });
             return;
         } else if (builtin.os.tag == .windows and host_device >= 3 and host_device <= 7) {
@@ -753,10 +756,10 @@ fn peripherals_gui_frame() !void {
         vm.peripherals.has_mouse_absolute_pointing = has_mouse_absolute_pointing;
 
         // Sanity checks
-        if (vm.peripherals.keyboard == .usb and vm.basic.usb_type == .none) {
+        if (vm.peripherals.keyboard == .usb and vm.system.usb_type == .none) {
             try gui.dialog(@src(), .{ .title = "Error", .message = "Keyboard model \"usb\" requires a USB controller." });
             return;
-        } else if (vm.peripherals.mouse == .usb and vm.basic.usb_type == .none) {
+        } else if (vm.peripherals.mouse == .usb and vm.system.usb_type == .none) {
             try gui.dialog(@src(), .{ .title = "Error", .message = "Mouse model \"usb\" requires a USB controller." });
             return;
         }
@@ -809,10 +812,10 @@ fn drives_gui_frame() !void {
             }).items;
 
             // Second sanity checks
-            if (drive.bus == .usb and vm.basic.usb_type == .none) {
+            if (drive.bus == .usb and vm.system.usb_type == .none) {
                 try gui.dialog(@src(), .{ .title = "Error", .message = try std.fmt.bufPrint(&format_buffer, "Bus \"usb\" of drive {d} requires a USB controller.", .{i}) });
                 return;
-            } else if (drive.bus == .sata and !vm.basic.has_ahci) {
+            } else if (drive.bus == .sata and !vm.system.has_ahci) {
                 try gui.dialog(@src(), .{ .title = "Error", .message = try std.fmt.bufPrint(&format_buffer, "Bus \"sata\" of drive {d} requires a SATA controller.", .{i}) });
                 return;
             }
@@ -920,7 +923,7 @@ fn delete_confirmation_modal() !void {
         // Confirmation button
         if (try gui.button(@src(), "Confirm", .{}, .{ .expand = .horizontal, .color_style = .err })) {
             // Use starts with because the deletion confirmation is the full buffer
-            if (!std.mem.eql(u8, deletion_confirmation_text[0..vm.basic.name.len], vm.basic.name)) {
+            if (!std.mem.eql(u8, deletion_confirmation_text[0..vm.system.name.len], vm.system.name)) {
                 try gui.dialog(@src(), .{
                     .title = "Error: VM Name Mismatch",
                     .message = "Make sure you enter the full name of the VM to confirm deletion!",
@@ -929,7 +932,7 @@ fn delete_confirmation_modal() !void {
             }
 
             // Delete VM directory
-            try main.virtual_machines_directory.dir.deleteTree(vm.basic.name);
+            try main.virtual_machines_directory.dir.deleteTree(vm.system.name);
             // Remove VM from array list
             _ = main.virtual_machines.swapRemove(vm_index);
 

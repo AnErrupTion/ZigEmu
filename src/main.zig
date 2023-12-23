@@ -131,7 +131,7 @@ fn gui_frame(allocator: Allocator) !void {
         defer scroll.deinit();
 
         for (virtual_machines.items, 0..) |vm, i| {
-            if (try gui.button(@src(), vm.basic.name, .{}, .{ .expand = .horizontal, .color_style = .accent, .id_extra = i })) {
+            if (try gui.button(@src(), vm.system.name, .{}, .{ .expand = .horizontal, .color_style = .accent, .id_extra = i })) {
                 edit_virtual_machine.vm = vm;
                 edit_virtual_machine.vm_index = i;
                 edit_virtual_machine.show = true;

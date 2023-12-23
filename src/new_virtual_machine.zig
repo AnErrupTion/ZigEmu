@@ -148,7 +148,7 @@ pub fn guiFrame() !void {
 
 fn construct_default_vm(name_str: []const u8, ram_num: u64, cores_num: u64, threads_num: u64, boot_image_str: []const u8) structs.VirtualMachine {
     return .{
-        .basic = .{
+        .system = .{
             .name = name_str,
             .architecture = .amd64,
             .chipset = .q35,
@@ -265,7 +265,7 @@ fn construct_default_vm(name_str: []const u8, ram_num: u64, cores_num: u64, thre
 
 fn construct_win10_vm(name_str: []const u8, ram_num: u64, cores_num: u64, threads_num: u64, boot_image_str: []const u8) structs.VirtualMachine {
     return .{
-        .basic = .{
+        .system = .{
             .name = name_str,
             .architecture = .amd64,
             .chipset = .q35,
@@ -382,7 +382,7 @@ fn construct_win10_vm(name_str: []const u8, ram_num: u64, cores_num: u64, thread
 
 fn construct_win81_vm(name_str: []const u8, ram_num: u64, cores_num: u64, threads_num: u64, boot_image_str: []const u8) structs.VirtualMachine {
     return .{
-        .basic = .{
+        .system = .{
             .name = name_str,
             .architecture = .amd64,
             .chipset = .q35,
@@ -499,7 +499,7 @@ fn construct_win81_vm(name_str: []const u8, ram_num: u64, cores_num: u64, thread
 
 fn construct_win7_vm(name_str: []const u8, ram_num: u64, cores_num: u64, threads_num: u64, boot_image_str: []const u8) structs.VirtualMachine {
     return .{
-        .basic = .{
+        .system = .{
             .name = name_str,
             .architecture = .amd64,
             .chipset = .q35,
@@ -616,7 +616,7 @@ fn construct_win7_vm(name_str: []const u8, ram_num: u64, cores_num: u64, threads
 
 fn construct_winxp_vm(name_str: []const u8, ram_num: u64, cores_num: u64, threads_num: u64, boot_image_str: []const u8) structs.VirtualMachine {
     return .{
-        .basic = .{
+        .system = .{
             .name = name_str,
             .architecture = .amd64,
             .chipset = .i440fx,
@@ -733,7 +733,7 @@ fn construct_winxp_vm(name_str: []const u8, ram_num: u64, cores_num: u64, thread
 
 fn construct_linux_vm(name_str: []const u8, ram_num: u64, cores_num: u64, threads_num: u64, boot_image_str: []const u8) structs.VirtualMachine {
     return .{
-        .basic = .{
+        .system = .{
             .name = name_str,
             .architecture = .amd64,
             .chipset = .q35,
@@ -775,7 +775,7 @@ fn construct_linux_vm(name_str: []const u8, ram_num: u64, cores_num: u64, thread
         },
         .audio = .{
             .host_device = .auto,
-            .sound = .ich9,
+            .sound = .virtio,
             .has_input = false,
             .has_output = true,
         },

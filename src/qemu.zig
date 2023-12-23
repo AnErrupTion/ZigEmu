@@ -9,10 +9,10 @@ const Allocator = std.mem.Allocator;
 pub fn getArguments(allocator: Allocator, vm: structs.VirtualMachine, drives: []*structs.Drive) !std.ArrayList([]const u8) {
     var list = std.ArrayList([]const u8).init(allocator);
 
-    const architecture_str = switch (vm.basic.architecture) {
+    const architecture_str = switch (vm.system.architecture) {
         .amd64 => "x86_64",
     };
-    const chipset_str = switch (vm.basic.chipset) {
+    const chipset_str = switch (vm.system.chipset) {
         .i440fx => "pc",
         .q35 => "q35",
     };
@@ -152,10 +152,10 @@ pub fn getArguments(allocator: Allocator, vm: structs.VirtualMachine, drives: []
     };
 
     const qemu_path_separator = if (vm.qemu.override_qemu_path and !std.mem.endsWith(u8, vm.qemu.qemu_path, std.fs.path.sep_str)) std.fs.path.sep_str else "";
-    const pci_bus_type = if (vm.basic.chipset == .q35) "pcie" else "pci";
+    const pci_bus_type = if (vm.system.chipset == .q35) "pcie" else "pci";
 
     var qemu_path = try std.fmt.allocPrint(allocator, "{s}{s}qemu-system-{s}", .{ vm.qemu.qemu_path, qemu_path_separator, architecture_str });
-    var name = try std.fmt.allocPrint(allocator, "{s},process={s}", .{ vm.basic.name, vm.basic.name });
+    var name = try std.fmt.allocPrint(allocator, "{s},process={s}", .{ vm.system.name, vm.system.name });
     var cpu = if (vm.processor.features.len > 0) try std.fmt.allocPrint(allocator, "{s},{s}", .{ cpu_str, vm.processor.features }) else cpu_str;
     var ram = try std.fmt.allocPrint(allocator, "{d}M", .{vm.memory.ram});
     var smp = try std.fmt.allocPrint(allocator, "cores={d},threads={d}", .{ vm.processor.cores, vm.processor.threads });
@@ -173,7 +173,7 @@ pub fn getArguments(allocator: Allocator, vm: structs.VirtualMachine, drives: []
     try list.append("-nodefaults");
 
     try list.append("-accel");
-    if (vm.basic.has_acceleration) {
+    if (vm.system.has_acceleration) {
         try list.append(switch (builtin.os.tag) {
             .windows => "whpx",
             .macos => "hvf",
@@ -254,8 +254,8 @@ pub fn getArguments(allocator: Allocator, vm: structs.VirtualMachine, drives: []
         },
     }
 
-    if (vm.basic.usb_type != .none) {
-        const usb_type_str = switch (vm.basic.usb_type) {
+    if (vm.system.usb_type != .none) {
+        const usb_type_str = switch (vm.system.usb_type) {
             .ohci => "pci-ohci",
             .uhci => "piix3-usb-uhci",
             .ehci => "usb-ehci",
@@ -270,7 +270,7 @@ pub fn getArguments(allocator: Allocator, vm: structs.VirtualMachine, drives: []
         try list.append(usb);
     }
 
-    if (vm.basic.has_ahci) {
+    if (vm.system.has_ahci) {
         var ahci = try std.fmt.allocPrint(allocator, "ahci,bus={s}.0,id=ahci", .{pci_bus_type});
 
         try permanent_buffers.arrays.append(ahci);
@@ -281,7 +281,7 @@ pub fn getArguments(allocator: Allocator, vm: structs.VirtualMachine, drives: []
 
     switch (vm.firmware.type) {
         .bios => {
-            if (vm.basic.architecture != .amd64) unreachable;
+            if (vm.system.architecture != .amd64) unreachable;
 
             const paths = if (vm.qemu.override_qemu_path) &[_][]const u8{vm.qemu.qemu_path} else switch (builtin.os.tag) {
                 .linux => &[_][]const u8{ "/usr/share/qemu", "/usr/share/seabios" },
@@ -299,17 +299,17 @@ pub fn getArguments(allocator: Allocator, vm: structs.VirtualMachine, drives: []
         },
         .uefi => {
             const paths = if (vm.qemu.override_qemu_path) &[_][]const u8{vm.qemu.qemu_path} else switch (builtin.os.tag) {
-                .linux => switch (vm.basic.architecture) {
+                .linux => switch (vm.system.architecture) {
                     .amd64 => &[_][]const u8{ "/usr/share/qemu", "/usr/share/OVMF", "/usr/share/OVMF/x64" },
                 },
                 else => unreachable, // TODO: Firmware path auto-detection for Windows and macOS
             };
 
-            const codes = switch (vm.basic.architecture) {
+            const codes = switch (vm.system.architecture) {
                 .amd64 => &[_][]const u8{ "edk2-x86_64-code.fd", "OVMF_CODE.fd" },
             };
 
-            const variables = switch (vm.basic.architecture) {
+            const variables = switch (vm.system.architecture) {
                 .amd64 => &[_][]const u8{ "edk2-i386-vars.fd", "OVMF_VARS.fd" },
             };
 
@@ -452,7 +452,7 @@ pub fn getArguments(allocator: Allocator, vm: structs.VirtualMachine, drives: []
         .auto => switch (builtin.os.tag) {
             .windows => try list.append("dsound,id=hostdev"),
             .macos => try list.append("coreaudio,id=hostdev"),
-            .linux => try list.append("alsa,id=hostdev"),
+            .linux => try list.append("pipewire,id=hostdev"),
             .kfreebsd, .freebsd, .openbsd, .netbsd, .dragonfly => try list.append("sndio,id=hostdev"),
             else => try list.append("sdl,id=hostdev"),
         },
@@ -523,17 +523,37 @@ pub fn getArguments(allocator: Allocator, vm: structs.VirtualMachine, drives: []
         .usb => {
             if (vm.audio.has_input) unreachable;
             if (!vm.audio.has_output) unreachable;
-            if (vm.basic.usb_type == .none) unreachable;
+            if (vm.system.usb_type == .none) unreachable;
 
             try list.append("-device");
             try list.append("usb-audio,audiodev=hostdev,bus=usb.0");
+        },
+        .virtio => {
+            // This is a QEMU limitation:
+            // > At the moment, no stream configuration is supported: the first one will always be a playback stream,
+            // > an optional second will always be a capture stream.
+            // https://qemu-project.gitlab.io/qemu/system/devices/virtio-snd.html
+            if (vm.audio.has_input and !vm.audio.has_output) unreachable;
+
+            // zig fmt: off
+            const streams: u8 = if (vm.audio.has_input and vm.audio.has_output) 2
+                else if (!vm.audio.has_input and vm.audio.has_output) 1
+                else 0;
+            // zig fmt: on
+
+            var sound = try std.fmt.allocPrint(allocator, "virtio-sound-pci,audiodev=hostdev,streams={d},bus={s}.0", .{ streams, pci_bus_type });
+
+            try permanent_buffers.arrays.append(sound);
+
+            try list.append("-device");
+            try list.append(sound);
         },
     }
 
     if (vm.peripherals.keyboard != .none) {
         switch (vm.peripherals.keyboard) {
             .usb => {
-                if (vm.basic.usb_type == .none) unreachable;
+                if (vm.system.usb_type == .none) unreachable;
 
                 try list.append("-device");
                 try list.append("usb-kbd,bus=usb.0");
@@ -555,7 +575,7 @@ pub fn getArguments(allocator: Allocator, vm: structs.VirtualMachine, drives: []
 
         switch (vm.peripherals.mouse) {
             .usb => {
-                if (vm.basic.usb_type == .none) unreachable;
+                if (vm.system.usb_type == .none) unreachable;
 
                 mouse = try std.fmt.allocPrint(allocator, "{s},bus=usb.0", .{if (vm.peripherals.has_mouse_absolute_pointing) "usb-tablet" else "usb-mouse"});
             },
@@ -621,7 +641,7 @@ pub fn getArguments(allocator: Allocator, vm: structs.VirtualMachine, drives: []
                 try list.append(bus);
             },
             .usb => {
-                if (vm.basic.usb_type == .none) unreachable;
+                if (vm.system.usb_type == .none) unreachable;
                 if (drive.is_cdrom) unreachable;
 
                 var bus = try std.fmt.allocPrint(allocator, "usb-storage,drive=drive{d},bus=usb.0,removable={d}", .{ i, if (drive.is_removable) "true" else "false" });

@@ -210,6 +210,7 @@ pub const Sound = enum {
     ich6,
     ich9,
     usb,
+    virtio,
 };
 
 pub const Keyboard = enum {
@@ -263,7 +264,7 @@ pub const VirtualMachine = struct {
         override_qemu_path: bool,
         qemu_path: []const u8,
     },
-    basic: struct {
+    system: struct {
         name: []const u8,
         architecture: Architecture,
         has_acceleration: bool,

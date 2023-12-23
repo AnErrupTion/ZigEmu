@@ -4,7 +4,7 @@ ZigEmu is a QEMU frontend made in Zig. It uses the [dvui](https://github.com/dav
 
 ## QEMU
 
-ZigEmu currently tracks QEMU v8.1.x.
+ZigEmu currently tracks QEMU v8.2.x.
 
 ## Screenshot
 
